@@ -1,4 +1,5 @@
 import './globals.css';
+import './genre-sidebar.css';
 
 export const metadata = {
   title: 'MovieList — твоя личная фильмотека',

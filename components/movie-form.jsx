@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { GENRES, STATUSES, STATUS_LABELS } from '../lib/movie-constants';
 import Icon from './icon';
+import GenreImage from './genre-image';
 
 export function Dialog({ title, subtitle, children, onClose, busy = false }) {
   const ref = useRef(null);
@@ -34,6 +35,7 @@ export default function MovieForm({ movie, onClose, onSave }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const editing = Boolean(movie);
+  const [selectedGenre, setSelectedGenre] = useState(movie?.genre || GENRES[0]);
 
   async function submit(event) {
     event.preventDefault();
@@ -70,8 +72,16 @@ export default function MovieForm({ movie, onClose, onSave }) {
             <input name="year" type="number" min="1888" max="2100" step="1" required defaultValue={movie?.year || new Date().getFullYear()} />
           </label>
           <label>Жанр <span className="required">*</span>
-            <select name="genre" defaultValue={movie?.genre || GENRES[0]}>{GENRES.map((genre) => <option key={genre}>{genre}</option>)}</select>
+            <select name="genre" value={selectedGenre} onChange={(event) => setSelectedGenre(event.target.value)}>{GENRES.map((genre) => <option key={genre}>{genre}</option>)}</select>
           </label>
+        </div>
+        <div className="genre-preview">
+          <GenreImage genre={selectedGenre} className="genre-preview-image" eager />
+          <div>
+            <p className="genre-preview-label">АВТОМАТИЧЕСКАЯ ОБЛОЖКА</p>
+            <strong>{selectedGenre}</strong>
+            <p>Одна картинка для всех фильмов этого жанра. Ссылку вводить не нужно.</p>
+          </div>
         </div>
         <div className="form-row">
           <label>Статус

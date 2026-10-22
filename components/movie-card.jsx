@@ -1,17 +1,16 @@
 import Icon from './icon';
+import GenreImage from './genre-image';
 import { STATUS_LABELS } from '../lib/movie-constants';
 
-// Обложки нарисованы CSS: они работают без загрузки постеров и ключей API.
+// Обложка зависит только от жанра: работает для старых и новых записей без изменения базы.
 export default function MovieCard({ movie, onEdit, onDelete, onToggle, busy }) {
-  let hash = 0;
-  for (const letter of movie.title) hash += letter.codePointAt(0);
-  const theme = hash % 6;
 
   return (
     <article className="movie-card">
-      <div className={`movie-poster poster-${theme}`} aria-hidden="true">
-        <div className="poster-grain" /><div className="poster-orbit" /><div className="poster-orb" /><div className="poster-landscape" />
-        <span className="poster-caption">MOVIELIST COLLECTION</span>
+      <div className="movie-poster genre-poster" aria-hidden="true">
+        <GenreImage genre={movie.genre} />
+        <div className="genre-poster-shade" />
+        <span className="poster-caption">{movie.genre} <span>ОБЛОЖКА ЖАНРА</span></span>
         <div className="poster-title">{movie.title}<span>{movie.year} · {movie.genre}</span></div>
         {movie.rating !== null && <span className="poster-rating"><Icon name="star" size={13} />{movie.rating}<span>/ 10</span></span>}
       </div>

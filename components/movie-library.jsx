@@ -5,6 +5,7 @@ import Icon from './icon';
 import MovieCard from './movie-card';
 import MovieForm, { Dialog } from './movie-form';
 import { GENRES } from '../lib/movie-constants';
+import { useSidebar, SidebarToggle } from './sidebar-controls';
 
 const sections = [
   { value: '', label: 'Моя коллекция', icon: 'grid' },
@@ -23,6 +24,7 @@ async function request(url, options = {}) {
 }
 
 export default function MovieLibrary() {
+  const sidebar = useSidebar();
   const [movies, setMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
   const [search, setSearch] = useState('');
@@ -115,23 +117,37 @@ export default function MovieLibrary() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebar.className}`}>
       <a className="skip-link" href="#collection">Перейти к фильмам</a>
-      <aside className="sidebar">
-        <button type="button" className="brand" onClick={resetFilters} aria-label="MovieList — вся коллекция"><span className="brand-symbol"><Icon name="film" size={24} /></span>Movie<span>List</span><i /></button>
+      {sidebar.mobile && sidebar.mobileOpen && <button type="button" className="sidebar-scrim" onClick={sidebar.close} tabIndex={-1} aria-label="Закрыть боковую панель" />}
+      <aside className="sidebar" id="movie-sidebar" ref={sidebar.sidebarRef}
+        inert={!sidebar.open} aria-hidden={!sidebar.open}
+        role={sidebar.mobile && sidebar.mobileOpen ? 'dialog' : undefined}
+        aria-modal={sidebar.mobile && sidebar.mobileOpen ? true : undefined}
+        aria-label="Боковая панель MovieList">
+        <div className="sidebar-heading">
+          <button type="button" className="brand" onClick={() => { resetFilters(); sidebar.afterNavigate(); }} aria-label="MovieList — вся коллекция"><span className="brand-symbol"><Icon name="film" size={24} /></span>Movie<span>List</span><i /></button>
+          <button type="button" className="icon-button sidebar-close" ref={sidebar.closeRef} onClick={sidebar.close} title="Скрыть панель" aria-label="Скрыть панель"><Icon name="close" size={19} /></button>
+        </div>
         <p className="nav-caption">ЛИЧНОЕ ПРОСТРАНСТВО</p>
         <nav aria-label="Разделы коллекции">
-          {sections.map((section) => <button type="button" key={section.value} className={`nav-item ${status === section.value ? 'active' : ''}`} aria-pressed={status === section.value} onClick={() => setStatus(section.value)}>
+          {sections.map((section) => <button type="button" key={section.value} className={`nav-item ${status === section.value ? 'active' : ''}`} aria-pressed={status === section.value} onClick={() => { setStatus(section.value); sidebar.afterNavigate(); }}>
             <Icon name={section.icon} /><span>{section.label}</span><small>{section.value ? allMovies.filter((movie) => movie.status === section.value).length : total}</small>
           </button>)}
         </nav>
         <div className="sidebar-note"><span className="small-star">✦</span><h3>Больше хорошего кино.</h3><p>Сохраняй то, что хочется посмотреть. Возвращайся к тому, что запомнилось.</p><span className="note-line" /></div>
-        <button type="button" className="about-link" onClick={() => setAbout(true)}><Icon name="info" size={18} />О MovieList<Icon name="arrow" size={16} /></button>
+        <button type="button" className="about-link" onClick={() => { sidebar.afterNavigate(); setAbout(true); }}><Icon name="info" size={18} />О MovieList<Icon name="arrow" size={16} /></button>
         <div className="sidebar-footer"><span className="avatar">M</span><div>Твоя фильмотека<small>Истории на любой вечер</small></div><span className="online-dot" /></div>
       </aside>
 
-      <div className="main-shell">
-        <header className="topbar"><div className="breadcrumb">Моё пространство <span>/</span><strong>{sections.find((section) => section.value === status).label}</strong></div><span className="topbar-tag"><span />Для любви к кино</span></header>
+      <div className="main-shell" inert={sidebar.mobile && sidebar.mobileOpen}>
+        <header className="topbar">
+          <div className="topbar-start">
+            <SidebarToggle sidebar={sidebar} />
+            <div className="breadcrumb"><span className="breadcrumb-root">Моё пространство</span><span className="breadcrumb-separator">/</span><strong>{sections.find((section) => section.value === status).label}</strong></div>
+          </div>
+          <span className="topbar-tag"><span />Для любви к кино</span>
+        </header>
         <main>
           <section className="hero" aria-labelledby="page-title">
             <div className="hero-content"><p className="eyebrow"><span /> ТВОЙ СЛЕДУЮЩИЙ КИНОВЕЧЕР</p><h1 id="page-title">Хорошие истории.<br /><em>В одном месте.</em></h1><p className="hero-description">Фильмы, которые ждут своего вечера.<br className="desktop-break" /> Впечатления, которые хочется сохранить.</p><button type="button" className="primary-button hero-button" onClick={() => setForm({ movie: null })}><Icon name="plus" size={19} />Добавить фильм</button></div>
@@ -157,7 +173,7 @@ export default function MovieLibrary() {
       </div>
       {form && <MovieForm movie={form.movie} onClose={() => setForm(null)} onSave={saveMovie} />}
       {deleting && <Dialog title="Удалить фильм?" subtitle={`«${deleting.title}» исчезнет из коллекции вместе с оценкой и заметкой.`} onClose={() => setDeleting(null)} busy={busy}>{deleteError && <p className="form-error" role="alert">{deleteError}</p>}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={() => setDeleting(null)} disabled={busy}>Оставить</button><button type="button" className="danger-button" onClick={deleteMovie} disabled={busy}><Icon name="trash" size={18} />{busy ? 'Удаляем…' : 'Удалить фильм'}</button></div></Dialog>}
-      {about && <Dialog title="Каждому фильму — своё место" onClose={() => setAbout(false)}><div className="about-content"><p>MovieList — твоя небольшая фильмотека. Собирай идеи для просмотра, отмечай пройденные истории и оставляй оценки от 1 до 10.</p><p>Добавь фильм, выбери жанр и статус. После просмотра сохрани впечатление в заметке — чтобы однажды захотеть пересмотреть.</p><p className="about-note">В этой версии список общий для всех, кто открывает один и тот же запущенный MovieList.</p></div><div className="dialog-actions"><button type="button" className="primary-button" onClick={() => setAbout(false)}>К моей коллекции<Icon name="arrow" size={18} /></button></div></Dialog>}
+      {about && <Dialog title="Каждому фильму — своё место" onClose={() => setAbout(false)}><div className="about-content"><p>MovieList — твоя небольшая фильмотека. Собирай идеи для просмотра, отмечай пройденные истории и оставляй оценки от 1 до 10.</p><p>Добавь фильм, выбери жанр и статус. После просмотра сохрани впечатление в заметке — чтобы однажды захотеть пересмотреть.</p><p>Картинка выбирается автоматически по жанру. Это общая тематическая обложка, а не официальный постер конкретного фильма.</p><p className="about-note">В этой версии список общий для всех, кто открывает один и тот же запущенный MovieList.</p></div><div className="dialog-actions"><button type="button" className="primary-button" onClick={() => setAbout(false)}>К моей коллекции<Icon name="arrow" size={18} /></button></div></Dialog>}
       {toast && <div className={`toast ${toast.error ? 'toast-error' : ''}`} role={toast.error ? 'alert' : 'status'}><Icon name={toast.error ? 'info' : 'circleCheck'} size={20} />{toast.text}<button type="button" className="icon-button" aria-label="Закрыть уведомление" onClick={() => setToast(null)}><Icon name="close" size={16} /></button></div>}
     </div>
   );
