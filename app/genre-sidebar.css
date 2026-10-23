@@ -37,17 +37,20 @@
 .sidebar-heading .brand { margin-bottom: 0; font-size: 24px; padding: 0; }
 .sidebar-heading .brand-symbol { width: 37px; height: 37px; margin-right: 9px; border-radius: 11px; }
 .sidebar-heading .brand i { display: none; }
-.sidebar-heading .sidebar-close { width: 32px; height: 36px; flex-shrink: 0; border-color: var(--line, #3b4662); }
 .app-shell .main-shell { margin-left: var(--sidebar-width); min-width: 0; transition: margin-left .24s ease; }
 .app-shell.sidebar-is-collapsed .sidebar { transform: translateX(-100%); visibility: hidden; transition: transform .24s ease, visibility 0s .24s; }
 .app-shell.sidebar-is-collapsed .main-shell { margin-left: 0; }
 .topbar { position: sticky; top: 0; z-index: 20; background: #0d111cf0; backdrop-filter: blur(16px); }
-.topbar-start { display: flex; align-items: center; gap: 21px; min-width: 0; }
-.sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 100px; height: 42px; padding: 0 12px; flex-shrink: 0; border: 1px solid var(--line, #3b4662); border-radius: 10px; background: var(--panel, #192134); color: var(--text, #f4f6ff); font-size: 13px; font-weight: 700; }
+.topbar-start { display: flex; align-items: center; gap: 14px; min-width: 0; }
+/* Одна компактная кнопка без надписи; подсказка задана в title/aria-label. */
+.sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; min-width: 36px; height: 36px; padding: 0; flex-shrink: 0; border: 1px solid var(--line, #3b4662); border-radius: 9px; background: var(--panel, #192134); color: var(--text, #f4f6ff); }
+.sidebar-toggle svg { display: block; flex-shrink: 0; }
+.sidebar-toggle:focus-visible { outline: 3px solid var(--accent, #c2b2ff); outline-offset: 3px; }
 .sidebar-toggle:hover { border-color: var(--accent, #c2b2ff); background: #2a2844; }
-.breadcrumb { min-width: 0; }
-.breadcrumb strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.breadcrumb .breadcrumb-root { color: #aab6cf; white-space: nowrap; }
+/* Вместо фиктивного пути — название реально выбранного раздела. */
+.current-section { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--text, #f4f6ff); font-size: 16px; font-weight: 700; line-height: 1.4; }
+.current-section > svg { color: var(--accent, #c2b2ff); flex-shrink: 0; }
+.current-section > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-scrim { display: none; }
 .app-shell .toast { left: calc(50% + var(--sidebar-width) / 2); }
 .app-shell.sidebar-is-collapsed .toast { left: 50%; }
@@ -58,7 +61,7 @@
 }
 @media (max-width: 1100px) {
   .topbar-tag { display: none; }
-  .topbar-start { gap: 16px; }
+  .topbar-start { gap: 14px; }
 }
 /* При скрытом меню пространство используется для более широкой сетки. */
 @media (min-width: 1050px) {
@@ -69,7 +72,7 @@
 }
 @media (max-width: 820px) {
   .app-shell .sidebar {
-    position: fixed; inset: 0 auto 0 0; width: min(310px, calc(100vw - 42px)); height: 100dvh;
+    position: fixed; inset: 72px auto 0 0; width: min(310px, calc(100vw - 42px)); height: calc(100dvh - 72px);
     padding: 25px 20px; flex-direction: column; align-items: stretch; justify-content: flex-start;
     overflow-y: auto; overscroll-behavior: contain; border-right: 1px solid var(--line, #3b4662);
     border-bottom: 0; z-index: 50; transform: translateX(-100%); visibility: hidden;
@@ -85,18 +88,19 @@
   .app-shell .sidebar .nav-item { font-size: 14px; }
   .app-shell .main-shell, .app-shell.sidebar-is-collapsed .main-shell { margin-left: 0; }
   .app-shell .toast, .app-shell.sidebar-is-collapsed .toast { left: 50%; }
-  .sidebar-scrim { display: block; position: fixed; inset: 0; width: 100%; height: 100dvh; z-index: 45; border: 0; padding: 0; background: #030610b3; backdrop-filter: blur(3px); cursor: default; }
+  .sidebar-scrim { display: block; position: fixed; inset: 72px 0 0; width: 100%; height: calc(100dvh - 72px); z-index: 45; border: 0; padding: 0; background: #030610b3; backdrop-filter: blur(3px); cursor: default; }
   .sidebar-scrim:active { transform: none !important; }
-  .topbar { height: 72px; }
+  /* Шапка выше панели: та же кнопка остаётся доступной и при открытом меню. */
+  .topbar { height: 72px; z-index: 60; }
   .topbar-start { width: 100%; gap: 14px; }
-  .breadcrumb { font-size: 12px; gap: 10px; }
+  .current-section { font-size: 15px; gap: 9px; }
   .sidebar-heading { margin-bottom: 32px; }
   .movie-poster.genre-poster { height: 300px; }
 }
 @media (max-width: 590px) {
   .topbar { padding: 0 18px; }
-  .breadcrumb-root, .breadcrumb-separator { display: none; }
-  .breadcrumb strong { font-size: 13px; }
+  .topbar-start { gap: 12px; }
+  .current-section { font-size: 14px; gap: 8px; }
   .movie-poster.genre-poster { height: 330px; }
   .genre-poster .poster-title { font-size: 31px; }
   .genre-preview { gap: 12px; grid-template-columns: 72px minmax(0, 1fr); padding: 10px; }

@@ -10,20 +10,20 @@ export function useSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const toggleRef = useRef(null);
   const sidebarRef = useRef(null);
-  const closeRef = useRef(null);
   const previouslyMobileOpen = useRef(false);
 
-  // Не читаем window при серверном рендеринге: HTML и первая отрисовка совпадают.
+  // На сервере и при первой отрисовке состояние одинаково.
+  // Настройки браузера читаются только после загрузки страницы.
   useEffect(() => {
     try { setCollapsed(window.localStorage.getItem(STORAGE_KEY) === 'true'); } catch {}
     const media = window.matchMedia('(max-width: 820px)');
     function changeLayout() {
-      setMobile(media.matches);
-      setMobileOpen(false);
-      // При смене ширины фокус не остаётся на скрытой кнопке меню.
-      if (media.matches && sidebarRef.current?.contains(document.activeElement)) {
+      // При смене ширины фокус не должен оставаться в скрываемой панели.
+      if (sidebarRef.current?.contains(document.activeElement)) {
         toggleRef.current?.focus();
       }
+      setMobile(media.matches);
+      setMobileOpen(false);
     }
     changeLayout();
     media.addEventListener('change', changeLayout);
@@ -54,36 +54,53 @@ export function useSidebar() {
 
   useEffect(() => {
     const nowOpen = mobile && mobileOpen;
-    // Возвращаем фокус только ПОСЛЕ снятия inert с основного содержимого.
-    if (previouslyMobileOpen.current && !nowOpen && !document.querySelector('dialog[open]')) {
-      toggleRef.current?.focus();
+    let frame;
+    if (previouslyMobileOpen.current && !nowOpen) {
+      // После снятия inert возвращаем фокус к той же кнопке.
+      // Открытый диалог, например «О MovieList», не теряет свой фокус.
+      frame = window.requestAnimationFrame(() => {
+        if (!document.querySelector('dialog[open]')) toggleRef.current?.focus();
+      });
     }
     previouslyMobileOpen.current = nowOpen;
+    return () => { if (frame !== undefined) window.cancelAnimationFrame(frame); };
   }, [mobile, mobileOpen]);
 
   useEffect(() => {
     if (!mobile || !mobileOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    closeRef.current?.focus();
+
+    // Крестика больше нет. Начинаем с активного пункта меню.
+    const activeItem = sidebarRef.current?.querySelector('.nav-item.active');
+    activeItem?.focus();
 
     function handleKey(event) {
+      if (document.querySelector('dialog[open]')) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         setMobileOpen(false);
         return;
       }
       if (event.key !== 'Tab') return;
-      const buttons = sidebarRef.current?.querySelectorAll('button:not(:disabled), a[href], [tabindex="0"]');
-      if (!buttons?.length) return;
-      const first = buttons[0];
-      const last = buttons[buttons.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault(); last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault(); first.focus();
-      }
+
+      // На телефоне доступны панель и единственная кнопка в шапке.
+      // Остальное содержимое страницы временно inert.
+      const sidebarItems = sidebarRef.current?.querySelectorAll(
+        'button:not(:disabled), a[href], [tabindex="0"]'
+      ) ?? [];
+      const items = [toggleRef.current, ...sidebarItems].filter(
+        (element) => element && element.getClientRects().length > 0
+      );
+      if (!items.length) return;
+      event.preventDefault();
+      const index = items.indexOf(document.activeElement);
+      const next = index < 0
+        ? (event.shiftKey ? items.length - 1 : 0)
+        : (index + (event.shiftKey ? -1 : 1) + items.length) % items.length;
+      items[next].focus();
     }
+
     document.addEventListener('keydown', handleKey);
     return () => {
       document.body.style.overflow = previousOverflow;
@@ -94,7 +111,7 @@ export function useSidebar() {
   return {
     collapsed, mobile, mobileOpen,
     open: mobile ? mobileOpen : !collapsed,
-    toggleRef, sidebarRef, closeRef,
+    toggleRef, sidebarRef,
     toggle, close, afterNavigate,
     className: `${collapsed ? 'sidebar-is-collapsed' : ''} ${mobileOpen ? 'sidebar-mobile-open' : ''}`,
   };
@@ -106,11 +123,12 @@ export function SidebarToggle({ sidebar }) {
     <button type="button" className="sidebar-toggle" ref={sidebar.toggleRef}
       onClick={sidebar.toggle} aria-controls="movie-sidebar" aria-expanded={sidebar.open}
       aria-label={label} title={label}>
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        {sidebar.open ? <><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16m7-11-3 3 3 3" /></> : <path d="M4 6h16M4 12h16M4 18h16" />}
+        {sidebar.open
+          ? <><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16m7-11-3 3 3 3" /></>
+          : <path d="M4 6h16M4 12h16M4 18h16" />}
       </svg>
-      <span>{sidebar.open ? 'Скрыть' : 'Меню'}</span>
     </button>
   );
 }
