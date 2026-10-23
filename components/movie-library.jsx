@@ -40,6 +40,10 @@ export default function MovieLibrary() {
   const [deleteError, setDeleteError] = useState('');
   const [toast, setToast] = useState(null);
   const [about, setAbout] = useState(false);
+  const [view, setView] = useState('collection');
+  const [addVisited, setAddVisited] = useState(false);
+  const [addFormVersion, setAddFormVersion] = useState(0);
+  const [creating, setCreating] = useState(false);
 
   // Запрос идёт в настоящий backend. AbortController отменяет устаревший поиск.
   useEffect(() => {
@@ -73,7 +77,10 @@ export default function MovieLibrary() {
   }, [toast]);
 
   // Один источник названия для шапки и заголовка списка фильмов.
-  const activeSection = sections.find((section) => section.value === status) ?? sections[0];
+  const collectionSection = sections.find((section) => section.value === status) ?? sections[0];
+  const activeSection = view === 'add'
+    ? { label: 'Добавить фильм', icon: 'plus' }
+    : collectionSection;
 
   const total = allMovies.length;
   const watched = allMovies.filter((movie) => movie.status === 'watched').length;
@@ -85,6 +92,27 @@ export default function MovieLibrary() {
   function reload() { setRefresh((value) => value + 1); }
   function resetFilters() { setSearch(''); setGenre(''); setStatus(''); setSort('newest'); }
 
+  function openCollection(section = '') {
+    if (creating) return;
+    setView('collection');
+    setStatus(section);
+    sidebar.afterNavigate();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  function openAddFilm() {
+    setAddVisited(true);
+    setView('add');
+    sidebar.afterNavigate();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  function showAllMovies() {
+    if (creating) return;
+    resetFilters();
+    openCollection('');
+  }
+
   async function saveMovie(data, id) {
     await request(id ? `/api/movies/${id}` : '/api/movies', {
       method: id ? 'PATCH' : 'POST',
@@ -93,7 +121,12 @@ export default function MovieLibrary() {
     });
     setForm(null);
     // Новый фильм должен быть виден, даже если до добавления был выбран фильтр.
-    if (!id) resetFilters();
+    if (!id) {
+      resetFilters();
+      setView('collection');
+      setAddFormVersion((value) => value + 1);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
     reload();
     notify(id ? 'Изменения сохранены' : 'Фильм добавлен в коллекцию');
   }
@@ -121,23 +154,25 @@ export default function MovieLibrary() {
 
   return (
     <div className={`app-shell ${sidebar.className}`}>
-      <a className="skip-link" href="#collection" inert={sidebar.mobile && sidebar.mobileOpen}>Перейти к фильмам</a>
+      <a className="skip-link" href={view === 'add' ? '#add-film-title' : '#collection'} inert={sidebar.mobile && sidebar.mobileOpen}>{view === 'add' ? 'Перейти к форме' : 'Перейти к фильмам'}</a>
       {sidebar.mobile && sidebar.mobileOpen && <button type="button" className="sidebar-scrim" onClick={sidebar.close} tabIndex={-1} aria-label="Закрыть боковую панель" />}
       <aside className="sidebar" id="movie-sidebar" ref={sidebar.sidebarRef}
         inert={!sidebar.open} aria-hidden={!sidebar.open}
         aria-label="Боковая панель MovieList">
         <div className="sidebar-heading">
-          <button type="button" className="brand" onClick={() => { resetFilters(); sidebar.afterNavigate(); }} aria-label="MovieList — вся коллекция"><span className="brand-symbol"><Icon name="film" size={24} /></span>Movie<span>List</span><i /></button>
+          <button type="button" className="brand" onClick={showAllMovies} disabled={creating} aria-label="MovieList — вся коллекция"><span className="brand-symbol"><Icon name="film" size={24} /></span>Movie<span>List</span><i /></button>
         </div>
-        <p className="nav-caption">ЛИЧНОЕ ПРОСТРАНСТВО</p>
+        <p className="nav-caption">КОЛЛЕКЦИЯ</p>
         <nav aria-label="Разделы коллекции">
-          {sections.map((section) => <button type="button" key={section.value} className={`nav-item ${status === section.value ? 'active' : ''}`} aria-pressed={status === section.value} onClick={() => { setStatus(section.value); sidebar.afterNavigate(); }}>
+          {sections.map((section) => <button type="button" key={section.value} className={`nav-item ${view === 'collection' && status === section.value ? 'active' : ''}`} aria-current={view === 'collection' && status === section.value ? 'page' : undefined} disabled={creating} onClick={() => openCollection(section.value)}>
             <Icon name={section.icon} /><span>{section.label}</span><small>{section.value ? allMovies.filter((movie) => movie.status === section.value).length : total}</small>
           </button>)}
+          <div className="nav-divider" aria-hidden="true" />
+          <button type="button" className={`nav-item nav-add-film ${view === 'add' ? 'active' : ''}`}
+            aria-current={view === 'add' ? 'page' : undefined} disabled={creating} onClick={openAddFilm}>
+            <Icon name="plus" /><span>Добавить фильм</span>
+          </button>
         </nav>
-        <div className="sidebar-note"><span className="small-star">✦</span><h3>Больше хорошего кино.</h3><p>Сохраняй то, что хочется посмотреть. Возвращайся к тому, что запомнилось.</p><span className="note-line" /></div>
-        <button type="button" className="about-link" onClick={() => { sidebar.afterNavigate(); setAbout(true); }}><Icon name="info" size={18} />О MovieList<Icon name="arrow" size={16} /></button>
-        <div className="sidebar-footer"><span className="avatar">M</span><div>Твоя фильмотека<small>Истории на любой вечер</small></div><span className="online-dot" /></div>
       </aside>
 
       <div className="main-shell">
@@ -149,11 +184,21 @@ export default function MovieLibrary() {
               <span>{activeSection.label}</span>
             </div>
           </div>
-          <span className="topbar-tag"><span />Для любви к кино</span>
+          <div className="topbar-actions" inert={sidebar.mobile && sidebar.mobileOpen}>
+            <button type="button" className="topbar-about" onClick={() => setAbout(true)}
+              aria-label="О MovieList" title="О MovieList" aria-haspopup="dialog">
+              <Icon name="info" size={18} /><span>О MovieList</span>
+            </button>
+          </div>
         </header>
         <main inert={sidebar.mobile && sidebar.mobileOpen}>
-          <section className="hero" aria-labelledby="page-title">
-            <div className="hero-content"><p className="eyebrow"><span /> ТВОЙ СЛЕДУЮЩИЙ КИНОВЕЧЕР</p><h1 id="page-title">Хорошие истории.<br /><em>В одном месте.</em></h1><p className="hero-description">Фильмы, которые ждут своего вечера.<br className="desktop-break" /> Впечатления, которые хочется сохранить.</p><button type="button" className="primary-button hero-button" onClick={() => setForm({ movie: null })}><Icon name="plus" size={19} />Добавить фильм</button></div>
+          <div className="library-view" hidden={view !== 'collection'}>
+          <section className="hero hero-welcome" aria-labelledby="page-title">
+            <div className="hero-content">
+              <p className="eyebrow"><span /> MOVIELIST · ТВОЯ КОЛЛЕКЦИЯ</p>
+              <h1 id="page-title">Больше<br /><em>хорошего кино.</em></h1>
+              <p className="hero-description">Сохраняй то, что хочется посмотреть.<br className="desktop-break" /> Возвращайся к тому, что запомнилось.</p>
+            </div>
             <div className="hero-art" aria-hidden="true"><div className="hero-glow" /><div className="art-ring ring-one" /><div className="art-ring ring-two" /><div className="art-planet" /><div className="ticket ticket-back"><span>ONE MORE STORY</span><strong>НАЧАЛО</strong><small>ВОЙДИ В ДРУГУЮ РЕАЛЬНОСТЬ</small><div className="ticket-lines" /></div><div className="ticket ticket-front"><span>MOVIELIST PRESENTS</span><div className="ticket-sun" /><strong>ВЕЧЕР<br />ДЛЯ КИНО</strong><small>МЕСТО ДЛЯ ТВОЕЙ ИСТОРИИ</small><div className="ticket-bottom">БИЛЕТ № 001 <Icon name="star" size={12} /></div></div><span className="art-label">PRESS PLAY. FEEL MORE.</span></div>
           </section>
 
@@ -164,19 +209,29 @@ export default function MovieLibrary() {
           </section>
 
           <section className="collection" id="collection" aria-labelledby="collection-title">
-            <div className="section-heading"><div><h2 id="collection-title">{activeSection.label}<span>{loading ? '…' : movies.length}</span></h2><p>{status === 'watched' ? 'Истории, которые уже стали частью твоей.' : 'У каждого фильма здесь есть свой повод.'}</p></div><button type="button" className="text-button" onClick={() => setForm({ movie: null })}><Icon name="plus" size={17} />Новый фильм</button></div>
+            <div className="section-heading"><div><h2 id="collection-title">{collectionSection.label}<span>{loading ? '…' : movies.length}</span></h2><p>{status === 'watched' ? 'Истории, которые уже стали частью твоей.' : 'У каждого фильма здесь есть свой повод.'}</p></div><button type="button" className="text-button" onClick={openAddFilm}><Icon name="plus" size={17} />Новый фильм</button></div>
             <div className="filters"><label className="search-field"><Icon name="search" size={19} /><span className="sr-only">Поиск фильма по названию</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} maxLength={100} placeholder="Найти тот самый фильм…" /></label><label className="filter-select"><span className="sr-only">Жанр</span><select aria-label="Жанр" value={genre} onChange={(event) => setGenre(event.target.value)}><option value="">Все жанры</option>{GENRES.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-select sort-select"><span className="sr-only">Сортировка</span><select aria-label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Сначала новые</option><option value="title">По названию</option><option value="year">По году выпуска</option><option value="rating">По моей оценке</option></select></label></div>
             <div className="mobile-tabs" aria-label="Статус фильмов">{sections.map((section) => <button type="button" key={section.value} className={status === section.value ? 'selected' : ''} onClick={() => setStatus(section.value)} aria-pressed={status === section.value}>{section.value ? section.label : 'Все фильмы'}</button>)}</div>
             {loadError ? <div className="empty-state" role="alert"><Icon name="info" size={32} /><h3>Не получилось загрузить фильмы</h3><p>{loadError}</p><button type="button" className="secondary-button" onClick={reload}><Icon name="refresh" size={16} />Повторить</button></div> : <div aria-busy={loading} aria-label="Список фильмов">
-              {loading && movies.length === 0 ? <div className="movie-grid">{[1, 2, 3].map((i) => <div className="skeleton-card" key={i}><div /><span /><span /></div>)}</div> : movies.length > 0 ? <div className={`movie-grid ${loading ? 'updating' : ''}`}>{movies.map((movie) => <MovieCard key={movie.id} movie={movie} onEdit={(selected) => setForm({ movie: selected })} onDelete={(selected) => { setDeleteError(''); setDeleting(selected); }} onToggle={toggleMovie} busy={busy || loading} />)}</div> : <div className="empty-state"><Icon name="film" size={36} /><h3>{total ? 'Пока ничего не нашлось' : 'Твоя история начинается здесь'}</h3><p>{total ? 'Попробуй другое название или сбрось фильтры.' : 'Добавь первый фильм в свою коллекцию.'}</p><button type="button" className="primary-button" onClick={total ? resetFilters : () => setForm({ movie: null })}>{total ? 'Сбросить фильтры' : 'Добавить первый фильм'}</button></div>}
+              {loading && movies.length === 0 ? <div className="movie-grid">{[1, 2, 3].map((i) => <div className="skeleton-card" key={i}><div /><span /><span /></div>)}</div> : movies.length > 0 ? <div className={`movie-grid ${loading ? 'updating' : ''}`}>{movies.map((movie) => <MovieCard key={movie.id} movie={movie} onEdit={(selected) => setForm({ movie: selected })} onDelete={(selected) => { setDeleteError(''); setDeleting(selected); }} onToggle={toggleMovie} busy={busy || loading} />)}</div> : <div className="empty-state"><Icon name="film" size={36} /><h3>{total ? 'Пока ничего не нашлось' : 'Твоя история начинается здесь'}</h3><p>{total ? 'Попробуй другое название или сбрось фильтры.' : 'Добавь первый фильм в свою коллекцию.'}</p><button type="button" className="primary-button" onClick={total ? resetFilters : openAddFilm}>{total ? 'Сбросить фильтры' : 'Добавить первый фильм'}</button></div>}
             </div>}
           </section>
+          </div>
+          {addVisited && <section className="add-film-view" hidden={view !== 'add'} aria-labelledby="add-film-title">
+            <div className="add-film-heading">
+              <p className="eyebrow">НОВАЯ ИСТОРИЯ В КОЛЛЕКЦИИ</p>
+              <h1 id="add-film-title" tabIndex={-1}>Добавить фильм</h1>
+              <p>Заполни информацию о фильме. Обложка подберётся автоматически по жанру.</p>
+            </div>
+            <MovieForm key={`add-${addFormVersion}`} movie={null} presentation="page"
+              onClose={() => openCollection(status)} onSave={saveMovie} onBusyChange={setCreating} />
+          </section>}
           <footer className="page-footer"><span>MovieList <i>✦</i> Создано для хороших историй</span><span>{planned ? `${planned} в планах на следующие вечера` : 'Твоя следующая история уже близко'}</span></footer>
         </main>
       </div>
       {form && <MovieForm movie={form.movie} onClose={() => setForm(null)} onSave={saveMovie} />}
       {deleting && <Dialog title="Удалить фильм?" subtitle={`«${deleting.title}» исчезнет из коллекции вместе с оценкой и заметкой.`} onClose={() => setDeleting(null)} busy={busy}>{deleteError && <p className="form-error" role="alert">{deleteError}</p>}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={() => setDeleting(null)} disabled={busy}>Оставить</button><button type="button" className="danger-button" onClick={deleteMovie} disabled={busy}><Icon name="trash" size={18} />{busy ? 'Удаляем…' : 'Удалить фильм'}</button></div></Dialog>}
-      {about && <Dialog title="Каждому фильму — своё место" onClose={() => setAbout(false)}><div className="about-content"><p>MovieList — твоя небольшая фильмотека. Собирай идеи для просмотра, отмечай пройденные истории и оставляй оценки от 1 до 10.</p><p>Добавь фильм, выбери жанр и статус. После просмотра сохрани впечатление в заметке — чтобы однажды захотеть пересмотреть.</p><p>Картинка выбирается автоматически по жанру. Это общая тематическая обложка, а не официальный постер конкретного фильма.</p><p className="about-note">В этой версии список общий для всех, кто открывает один и тот же запущенный MovieList.</p></div><div className="dialog-actions"><button type="button" className="primary-button" onClick={() => setAbout(false)}>К моей коллекции<Icon name="arrow" size={18} /></button></div></Dialog>}
+      {about && <Dialog title="Каждому фильму — своё место" onClose={() => setAbout(false)}><div className="about-content"><p>MovieList — твоя небольшая фильмотека. Собирай идеи для просмотра, отмечай пройденные истории и оставляй оценки от 1 до 10.</p><p>Добавь фильм, выбери жанр и статус. После просмотра сохрани впечатление в заметке — чтобы однажды захотеть пересмотреть.</p><p>Картинка выбирается автоматически по жанру. Это общая тематическая обложка, а не официальный постер конкретного фильма.</p><p className="about-note">В этой версии список общий для всех, кто открывает один и тот же запущенный MovieList.</p></div><div className="dialog-actions"><button type="button" className="primary-button" onClick={() => { setAbout(false); showAllMovies(); }} disabled={creating}>К моей коллекции<Icon name="arrow" size={18} /></button></div></Dialog>}
       {toast && <div className={`toast ${toast.error ? 'toast-error' : ''}`} role={toast.error ? 'alert' : 'status'}><Icon name={toast.error ? 'info' : 'circleCheck'} size={20} />{toast.text}<button type="button" className="icon-button" aria-label="Закрыть уведомление" onClick={() => setToast(null)}><Icon name="close" size={16} /></button></div>}
     </div>
   );

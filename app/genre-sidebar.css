@@ -115,3 +115,80 @@
 @media (prefers-reduced-motion: reduce) {
   .app-shell .sidebar, .app-shell .main-shell { transition: none !important; }
 }
+
+/* 3. Чистая навигация и отдельный раздел «Добавить фильм». */
+.library-view[hidden], .add-film-view[hidden] { display: none; }
+.app-shell .sidebar { padding-bottom: 28px; }
+.nav-divider { border-top: 1px solid var(--line, #2b3650); margin: 15px 10px; }
+.app-shell .nav-add-film {
+  margin-top: 0; min-height: 52px; font-weight: 700;
+  color: #e5dbff; border: 1px solid #51446f;
+  background: linear-gradient(110deg, #302846, #242b43);
+}
+.app-shell .nav-add-film:hover:not(:disabled) { background: #3c3158; border-color: #8874b4; }
+.app-shell .nav-add-film.active { background: #493b67; border-color: #a58bd3; color: #fff; }
+.topbar-start { flex: 1; width: auto; }
+.topbar-actions { display: flex; flex-shrink: 0; align-items: center; }
+.topbar-about {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 38px; padding: 8px 12px; border: 1px solid var(--line, #2b3650);
+  border-radius: 10px; background: transparent; color: #c3cce1;
+  font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap;
+}
+.topbar-about:hover { background: #222a40; border-color: #736291; color: #e8ddff; }
+.hero.hero-welcome { min-height: 310px; }
+.hero-welcome .hero-content { width: 65%; }
+.hero-welcome h1 { font-size: clamp(36px, 3.4vw, 50px); line-height: 1.2; letter-spacing: -1.4px; }
+.hero-welcome .hero-description { font-size: 16px; line-height: 1.85; max-width: 480px; }
+.hero-welcome .hero-art { transform: scale(.88); transform-origin: center right; }
+.hero-welcome .art-label { display: none; }
+.add-film-view { max-width: 880px; margin: 0 auto; }
+.add-film-heading { margin: 4px 0 28px; }
+.add-film-heading .eyebrow { margin-bottom: 12px; }
+.add-film-heading h1 { font-size: clamp(30px, 3.2vw, 42px); line-height: 1.22; letter-spacing: -1.3px; }
+.add-film-heading > p:last-child { margin-top: 14px; color: var(--muted, #b0bbd1); font-size: 15px; line-height: 1.85; max-width: 650px; }
+.add-film-card { border: 1px solid #35415d; border-radius: 19px; padding: 30px; background: var(--panel-soft, #141b2b); box-shadow: 0 14px 44px #03071222; }
+.add-film-card .movie-form { margin: 0; }
+.movie-form-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.movie-form-fields:disabled input, .movie-form-fields:disabled select, .movie-form-fields:disabled textarea { opacity: .7; }
+.add-film-card .genre-preview { padding: 16px; background: #192239; }
+.add-film-card .genre-preview p:last-child { font-size: 13px; }
+.add-film-card .dialog-actions { margin-top: 8px; }
+#add-film-title { scroll-margin-top: 110px; }
+
+@media (max-width: 1100px) {
+  .hero.hero-welcome { padding: 28px; }
+  .hero-welcome .hero-content { width: 74%; }
+  .hero-welcome h1 { font-size: 39px; }
+  .hero-welcome .hero-description { font-size: 15px; }
+}
+@media (max-width: 820px) {
+  .topbar { gap: 12px; }
+  .topbar-start { width: auto; min-width: 0; }
+  .hero.hero-welcome { min-height: 285px; }
+  .add-film-view { margin: 0; }
+}
+@media (max-width: 590px) {
+  .topbar { padding-inline: 16px; gap: 10px; }
+  .topbar-start { gap: 10px; }
+  .topbar-about { width: 36px; min-height: 36px; height: 36px; padding: 0; }
+  .topbar-about > span { display: none; }
+  .current-section { gap: 7px; font-size: 13px; }
+  .current-section > svg { display: none; }
+  .hero.hero-welcome { padding: 26px 22px; min-height: 0; }
+  .hero-welcome .hero-content { width: 100%; }
+  .hero-welcome .hero-art { display: none; }
+  .hero-welcome h1 { font-size: clamp(31px, 8.5vw, 39px); }
+  .hero-welcome .hero-description { max-width: 100%; font-size: 14px; margin-top: 17px; }
+  .hero-welcome .eyebrow { font-size: 9px; margin-bottom: 16px; letter-spacing: 1.3px; }
+  .add-film-heading { margin: 2px 0 22px; }
+  .add-film-heading h1 { font-size: 32px; }
+  .add-film-heading .eyebrow { font-size: 9px; letter-spacing: 1.3px; }
+  .add-film-heading > p:last-child { font-size: 14px; }
+  .add-film-card { padding: 22px 18px; border-radius: 15px; }
+  .add-film-card .form-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .add-film-card .genre-preview { padding: 11px; }
+  .add-film-card .genre-preview p:last-child { font-size: 12px; }
+  .add-film-card .dialog-actions { display: flex; flex-direction: column-reverse; gap: 10px; }
+  .add-film-card .dialog-actions button { width: 100%; }
+}

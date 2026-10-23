@@ -31,7 +31,8 @@ export function Dialog({ title, subtitle, children, onClose, busy = false }) {
   );
 }
 
-export default function MovieForm({ movie, onClose, onSave }) {
+// Одна форма для отдельного раздела добавления и модального редактирования.
+export default function MovieForm({ movie, onClose, onSave, presentation = 'dialog', onBusyChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const editing = Boolean(movie);
@@ -39,6 +40,7 @@ export default function MovieForm({ movie, onClose, onSave }) {
 
   async function submit(event) {
     event.preventDefault();
+    if (busy) return;
     const form = new FormData(event.currentTarget);
     const data = {
       title: form.get('title').trim(),
@@ -51,21 +53,22 @@ export default function MovieForm({ movie, onClose, onSave }) {
     if (!data.title) { setError('Напиши название фильма.'); return; }
     setError('');
     setBusy(true);
+    onBusyChange?.(true);
     try {
       await onSave(data, movie?.id);
     } catch (requestError) {
       setError(requestError.message);
+    } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   }
 
-  return (
-    <Dialog title={editing ? 'Редактировать фильм' : 'Что посмотрим?'}
-      subtitle={editing ? 'Обнови информацию и сохрани впечатления.' : 'Добавь фильм в список — хороший вечер начинается здесь.'}
-      onClose={onClose} busy={busy}>
-      <form onSubmit={submit} className="movie-form">
+  const fields = (
+      <form onSubmit={submit} className="movie-form" aria-label={editing ? 'Редактировать фильм' : 'Добавить фильм'} aria-busy={busy}>
+        <fieldset className="movie-form-fields" disabled={busy}>
         <label>Название фильма <span className="required">*</span>
-          <input name="title" placeholder="Например, Интерстеллар" maxLength={100} required defaultValue={movie?.title || ''} autoFocus />
+          <input name="title" placeholder="Например, Интерстеллар" maxLength={100} required defaultValue={movie?.title || ''} autoFocus={presentation === 'dialog'} />
         </label>
         <div className="form-row">
           <label>Год выпуска <span className="required">*</span>
@@ -96,10 +99,22 @@ export default function MovieForm({ movie, onClose, onSave }) {
         </label>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="dialog-actions">
-          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Отмена</button>
+          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>{presentation === 'page' ? 'Назад к списку' : 'Отмена'}</button>
           <button type="submit" className="primary-button" disabled={busy}><Icon name={editing ? 'check' : 'plus'} />{busy ? 'Сохраняем…' : editing ? 'Сохранить изменения' : 'Добавить фильм'}</button>
         </div>
+        </fieldset>
       </form>
+  );
+
+  // Компонент остаётся смонтированным при переходе между разделами:
+  // незавершённый ввод сохраняется до добавления фильма или перезагрузки страницы.
+  if (presentation === 'page') return <div className="add-film-card">{fields}</div>;
+
+  return (
+    <Dialog title={editing ? 'Редактировать фильм' : 'Что посмотрим?'}
+      subtitle={editing ? 'Обнови информацию и сохрани впечатления.' : 'Добавь фильм в список — хороший вечер начинается здесь.'}
+      onClose={onClose} busy={busy}>
+      {fields}
     </Dialog>
   );
 }
