@@ -1,19 +1,41 @@
 {
-  "name": "movielist",
+  "name": "servicedesk",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Учебная фильмотека: Next.js, REST API и SQLite",
-  "engines": { "node": ">=24.0.0 <25" },
+  "description": "ServiceDesk — управление IT-заявками, командой и отчётами",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "test": "node --test tests/api.test.mjs"
+    "test": "node --test tests/unit.test.mjs",
+    "test:integration": "node --env-file-if-exists=.env --test tests/integration.test.mjs",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:dev": "prisma migrate dev",
+    "db:bootstrap": "node --env-file-if-exists=.env prisma/bootstrap.mjs",
+    "db:seed": "node --env-file-if-exists=.env prisma/seed.mjs",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "lucide-react": "1.61.0",
     "next": "16.4.2",
+    "next-auth": "5.0.0-beta.32",
+    "pg": "8.23.1",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "react-is": "19.3.1",
+    "recharts": "3.10.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "prisma": "7.10.1",
+    "tailwindcss": "4.3.3"
   }
 }

@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  EMPLOYEE
+  AGENT
+  ADMIN
+}
+
+enum TicketStatus {
+  NEW
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String    @db.VarChar(100)
+  email           String    @unique @db.VarChar(254)
+  passwordHash    String
+  role            Role      @default(EMPLOYEE)
+  createdAt       DateTime  @default(now())
+  createdTickets  Ticket[]  @relation("TicketCreator")
+  assignedTickets Ticket[]  @relation("TicketAssignee")
+  comments        Comment[]
+}
+
+model Category {
+  id      String   @id @default(cuid())
+  name    String   @unique @db.VarChar(100)
+  tickets Ticket[]
+}
+
+model Ticket {
+  id           Int          @id @default(autoincrement())
+  title        String       @db.VarChar(160)
+  description  String       @db.Text
+  status       TicketStatus @default(NEW)
+  priority     Priority     @default(MEDIUM)
+  categoryId   String
+  createdById  String
+  assignedToId String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  resolvedAt   DateTime?
+  category     Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("TicketCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedTo   User?        @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  comments     Comment[]
+
+  @@index([createdById, createdAt])
+  @@index([assignedToId, status])
+  @@index([status, priority, createdAt])
+  @@index([categoryId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  ticketId  Int
+  authorId  String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
+}
+
+// Shared across server processes. Keys are hashes, never raw emails or IPs.
+model AuthRateLimit {
+  id        String   @id
+  attempts  Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}

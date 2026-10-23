@@ -1,9 +1,12 @@
 import './globals.css';
-import './genre-sidebar.css';
 
 export const metadata = {
-  title: 'MovieList — твоя личная фильмотека',
-  description: 'Собирай фильмы, планируй просмотр и сохраняй впечатления в своей коллекции MovieList.',
+  title: {
+    default: 'ServiceDesk — работа под контролем',
+    template: '%s · ServiceDesk',
+  },
+  description:
+    'Заявки сотрудников, работа команды и прозрачная IT-поддержка в одной системе.',
 };
 
 export default function RootLayout({ children }) {
