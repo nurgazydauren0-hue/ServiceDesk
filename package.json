@@ -8,12 +8,15 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
-    "predev": "prisma generate",
+    "predev": "node prisma/local-db.mjs start-if-configured && prisma generate",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "test": "node --test tests/unit.test.mjs",
     "test:integration": "node --env-file-if-exists=.env --test tests/integration.test.mjs",
+    "db:local:start": "node prisma/local-db.mjs start",
+    "db:local:stop": "node prisma/local-db.mjs stop",
+    "db:local:status": "node prisma/local-db.mjs status",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:dev": "prisma migrate dev",
