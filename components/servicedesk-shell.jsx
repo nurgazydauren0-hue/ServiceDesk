@@ -72,6 +72,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
   const pathname = usePathname();
   const item = [
     ...navigation,
+    { href: '/support', label: 'Поддержка' },
     { href: '/settings', label: 'Настройки' },
     { href: '/profile', label: 'Профиль' },
   ].find((entry) => entry.href === pathname);
@@ -150,14 +151,19 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
               <span className="support-icon">
                 <ShieldCheck size={22} />
               </span>
-              <strong>Всё под контролем</strong>
+              <strong>Центр поддержки</strong>
               <p>
-                Единое пространство для
-                <br />
-                вашей IT-поддержки
+                {user.role === 'EMPLOYEE'
+                  ? 'Следите за ответами и статусом своих обращений'
+                  : 'Просматривайте обращения пользователей и помогайте с решением'}
               </p>
-              <Link href="/tickets/new" onClick={sidebar.afterNavigate}>
-                Обратиться в поддержку <ArrowUpRight size={14} />
+              <Link
+                href="/support"
+                onClick={sidebar.afterNavigate}
+                aria-current={pathname === '/support' ? 'page' : undefined}
+              >
+                {user.role === 'EMPLOYEE' ? 'Мои обращения' : 'Обращения пользователей'}
+                <ArrowUpRight size={14} />
               </Link>
             </div>
             <Link

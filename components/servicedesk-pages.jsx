@@ -237,14 +237,14 @@ function UserName({ user }) {
     <span className="muted">Не назначен</span>
   );
 }
-function TicketTable({ tickets, compact = false }) {
+function TicketTable({ tickets, compact = false, support = false }) {
   return (
     <div className="table-scroll">
       <table className="ticket-table">
         <thead>
           <tr>
             <th>Заявка</th>
-            {!compact && <th>Категория</th>}
+            {!compact && <th>{support ? 'Автор обращения' : 'Категория'}</th>}
             <th>Приоритет</th>
             <th>Статус</th>
             <th>Исполнитель</th>
@@ -264,7 +264,7 @@ function TicketTable({ tickets, compact = false }) {
                   </span>
                   <span>{ticket.title}</span>
                 </Link>
-                {compact && (
+                {(compact || support) && (
                   <span className="ticket-category">
                     {ticket.category?.name}
                   </span>
@@ -272,9 +272,18 @@ function TicketTable({ tickets, compact = false }) {
               </td>
               {!compact && (
                 <td>
-                  <span className="category-label">
-                    {ticket.category?.name || '—'}
-                  </span>
+                  {support ? (
+                    <div className="support-author">
+                      <UserName user={ticket.createdBy} />
+                      <span className="support-author-email">
+                        {ticket.createdBy?.email || '—'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="category-label">
+                      {ticket.category?.name || '—'}
+                    </span>
+                  )}
                 </td>
               )}
               <td>
@@ -617,12 +626,26 @@ export function DashboardPage() {
   );
 }
 
-export function TicketsPage({ mine = false }) {
+const supportQueues = [
+  ['NEW', 'Новые'],
+  ['IN_PROGRESS', 'В работе'],
+  ['WAITING', 'Ожидание'],
+  ['RESOLVED', 'Решённые'],
+  ['CLOSED', 'Закрытые'],
+  ['', 'Все обращения'],
+];
+
+export function SupportPage() {
+  return <TicketsPage support />;
+}
+
+export function TicketsPage({ mine = false, support = false }) {
+  const user = useCurrentUser();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(support ? 'NEW' : '');
   const [priority, setPriority] = useState('');
-  const [sort, setSort] = useState('newest');
+  const [sort, setSort] = useState(support ? 'oldest' : 'newest');
   const [page, setPage] = useState(1);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -642,29 +665,64 @@ export function TicketsPage({ mine = false }) {
   const { data, loading, error, reload } = useResource(
     `/api/tickets?${params}`,
   );
-  const filtered = !!(query || status || priority);
+  const filtered = !!(query || (!support && status) || priority);
   function reset() {
     setSearch('');
     setQuery('');
-    setStatus('');
+    if (!support) setStatus('');
     setPriority('');
-    setSort('newest');
+    setSort(support ? 'oldest' : 'newest');
     setPage(1);
   }
   return (
     <>
       <PageTitle
-        eyebrow="ЦЕНТР ОБРАЩЕНИЙ"
-        title={mine ? 'Мои заявки' : 'Все заявки'}
+        eyebrow={support ? 'СЛУЖБА ПОДДЕРЖКИ' : 'ЦЕНТР ОБРАЩЕНИЙ'}
+        title={
+          support
+            ? user.role === 'EMPLOYEE'
+              ? 'Мои обращения в поддержку'
+              : 'Обращения пользователей'
+            : mine ? 'Мои заявки' : 'Все заявки'
+        }
         description={
-          mine
-            ? 'Следите за обращениями, которые вы создали.'
-            : 'Все доступные вам обращения — в одном месте.'
+          support
+            ? user.role === 'ADMIN'
+              ? 'Просматривайте обращения сотрудников. Откройте заявку, чтобы ответить, назначить исполнителя или изменить статус.'
+              : user.role === 'AGENT'
+                ? 'Просматривайте доступные вам обращения и отвечайте пользователям в карточке заявки.'
+                : 'Проверяйте статус своих обращений и читайте ответы команды поддержки.'
+            : mine
+              ? 'Следите за обращениями, которые вы создали.'
+              : 'Все доступные вам обращения — в одном месте.'
         }
       >
-        <NewButton />
+        {support ? (
+          <button className="button secondary" onClick={reload} disabled={loading}>
+            <RefreshCw size={17} /> Обновить
+          </button>
+        ) : (
+          <NewButton />
+        )}
       </PageTitle>
       <section className="panel">
+        {support && (
+          <div className="support-queues" role="group" aria-label="Статус обращений">
+            {supportQueues.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={status === value}
+                onClick={() => {
+                  setStatus(value);
+                  setPage(1);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="filters">
           <label className="search-field">
             <Search size={18} />
@@ -680,21 +738,23 @@ export function TicketsPage({ mine = false }) {
               </button>
             )}
           </label>
-          <select
-            aria-label="Статус заявки"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Все статусы</option>
-            {Object.entries(statusLabels).map(([key, label]) => (
-              <option value={key} key={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+          {!support && (
+            <select
+              aria-label="Статус заявки"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Все статусы</option>
+              {Object.entries(statusLabels).map(([key, label]) => (
+                <option value={key} key={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             aria-label="Приоритет заявки"
             value={priority}
@@ -724,12 +784,20 @@ export function TicketsPage({ mine = false }) {
             <option value="updated">По обновлению</option>
           </select>
         </div>
-        {filtered && (
+        {(support || filtered) && (
           <div className="filter-summary">
-            {data ? `Найдено заявок: ${data.total}` : 'Поиск заявок…'}
-            <button onClick={reset}>
-              Сбросить фильтры <X size={13} />
-            </button>
+            <span aria-live="polite">
+              {loading
+                ? 'Загрузка обращений…'
+                : error
+                  ? 'Данные недоступны'
+                  : `Найдено ${support ? 'обращений' : 'заявок'}: ${data.total}`}
+            </span>
+            {filtered && (
+              <button onClick={reset}>
+                Сбросить фильтры <X size={13} />
+              </button>
+            )}
           </div>
         )}
         {loading ? (
@@ -738,7 +806,7 @@ export function TicketsPage({ mine = false }) {
           <ResourceError error={error} retry={reload} />
         ) : data.tickets.length ? (
           <>
-            <TicketTable tickets={data.tickets} />
+            <TicketTable tickets={data.tickets} support={support} />
             <div className="pagination">
               <span>
                 Показано {(page - 1) * data.pageSize + 1}–
@@ -767,13 +835,20 @@ export function TicketsPage({ mine = false }) {
           </>
         ) : (
           <Empty
-            title={filtered ? 'Ничего не найдено' : undefined}
+            title={
+              filtered ? 'Ничего не найдено'
+                : support ? 'В этой очереди пока нет обращений' : undefined
+            }
             text={
               filtered
                 ? 'Попробуйте изменить поисковый запрос или сбросить фильтры.'
-                : undefined
+                : support
+                  ? user.role === 'EMPLOYEE'
+                    ? 'Ваши обращения появятся здесь после отправки через «Создать заявку». Выберите другой статус, чтобы посмотреть историю.'
+                    : 'Выберите другой статус или дождитесь новых обращений пользователей.'
+                  : undefined
             }
-            action={!filtered}
+            action={!filtered && !support}
           />
         )}
       </section>
