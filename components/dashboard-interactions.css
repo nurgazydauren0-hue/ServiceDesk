@@ -2,7 +2,7 @@
 .status-ring { width: 100%; height: 200px; overflow: visible; }
 .status-ring-track { stroke: var(--chart-track, #eff3f6); }
 .status-ring-segment { cursor: pointer; transition: opacity .2s, stroke-width .25s, filter .25s; }
-.status-ring-segment.is-highlighted { stroke-width: 30px; opacity: 1; filter: none; }
+.status-ring-segment.is-highlighted { stroke-width: 20px; opacity: 1; filter: none; }
 .status-ring-segment.is-muted { opacity: .25; }
 .status-ring-empty-highlight { opacity: 1; filter: none; }
 .interactive-status-chart .donut-center strong { transition: color .2s; }

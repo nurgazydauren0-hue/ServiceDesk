@@ -374,7 +374,7 @@ function StatusChart({ statuses = [], total = 0 }) {
     >
       <div className="donut-wrap" style={{ '--active-status-color': active ? statusColors[active.status] : undefined }}>
         <svg className="status-ring" viewBox="0 0 220 220" role="img" aria-label={`Заявки по статусам. ${entries.map((entry) => `${entry.label}: ${entry.count}`).join(', ')}`}>
-          <circle className="status-ring-track" cx="110" cy="110" r="78" fill="none" strokeWidth="22" />
+          <circle className="status-ring-track" cx="110" cy="110" r="78" fill="none" strokeWidth="18" />
           {entries.map((entry) => {
             const fraction = sum ? entry.count / sum : 0;
             const start = offset;
@@ -385,7 +385,7 @@ function StatusChart({ statuses = [], total = 0 }) {
                 key={entry.status}
                 className={`status-ring-segment ${activeStatus === entry.status ? 'is-highlighted' : ''} ${activeStatus && activeStatus !== entry.status ? 'is-muted' : ''}`}
                 cx="110" cy="110" r="78" fill="none" pathLength="100"
-                stroke={statusColors[entry.status]} strokeWidth="22"
+                stroke={statusColors[entry.status]} strokeWidth="18"
                 strokeDasharray={`${sum === entry.count ? 100 : Math.max(.1, fraction * 100 - 1.5)} 100`}
                 strokeDashoffset={-start}
                 transform="rotate(-90 110 110)"
@@ -394,7 +394,7 @@ function StatusChart({ statuses = [], total = 0 }) {
             );
           })}
           {active && active.count === 0 && (
-            <circle className="status-ring-empty-highlight" cx="110" cy="110" r={sum ? 94 : 78} fill="none" stroke={statusColors[active.status]} strokeWidth={sum ? 4 : 28} />
+            <circle className="status-ring-empty-highlight" cx="110" cy="110" r={sum ? 94 : 78} fill="none" stroke={statusColors[active.status]} strokeWidth={sum ? 3 : 20} />
           )}
         </svg>
         <div className={`donut-center ${active ? 'is-highlighted' : ''}`}>
