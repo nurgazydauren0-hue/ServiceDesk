@@ -1,6 +1,17 @@
 import './globals.css';
 import '../components/theme.css';
 import { ThemeProvider } from '../components/theme-provider';
+import localFont from 'next/font/local';
+
+const merriweather = localFont({
+  src: './fonts/Merriweather-Regular.ttf',
+  variable: '--font-merriweather',
+  weight: '400',
+  style: 'normal',
+  display: 'swap',
+  fallback: ['Georgia', 'Times New Roman', 'serif'],
+  adjustFontFallback: 'Times New Roman',
+});
 
 export const metadata = {
   title: {
@@ -13,7 +24,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru" data-theme="light" suppressHydrationWarning>
+    <html lang="ru" className={merriweather.variable} data-theme="light" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

@@ -22,7 +22,7 @@
 .scene-platform-bottom { top: 120px; opacity: .4; background: #9bcebd; box-shadow: none; border-color: #98cdbc; }
 .scene-orbit { position: absolute; width: 307px; height: 164px; border: 1px solid #89cbbb70; border-radius: 50%; top: 80px; left: 26px; transform: rotate(-29deg); }
 .scene-hub { position: absolute; left: 132px; top: 70px; width: 99px; height: 115px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: #f3fffc; background: radial-gradient(circle at 20% 6%, #82dfbd 0, #23b69d 34%, #078c80 72%); border: 1px solid #91e8cdaa; border-radius: 29px; box-shadow: inset 3px 3px 7px #e7fff863, inset -5px -6px 12px #006f7255, 3px 3px 0 #178f7e, 5px 6px 0 #0b7a70, 8px 10px 0 #09695f, 15px 23px 25px #116f5e40; transform: rotateY(-24deg) rotateX(13deg) rotateZ(-8deg); transition: transform .55s cubic-bezier(.2,.7,.2,1); }
-.scene-hub > span { font-size: 7px; font-weight: 700; letter-spacing: 2px; opacity: .8; }
+.scene-hub > span { font-size: 7px; font-weight: 400; letter-spacing: 2px; opacity: .8; }
 .scene-hub-shadow { position: absolute; width: 130px; height: 35px; background: #085e4e35; border-radius: 50%; filter: blur(14px); top: 198px; left: 125px; transform: rotate(-20deg); }
 .scene-ticket { position: absolute; width: 116px; padding: 13px; background: linear-gradient(145deg, #ffffff, #eaf7f2); border: 1px solid #fff; border-radius: 15px; box-shadow: inset -2px -3px 5px #c0e1d436, 2px 4px 0 #c4ded5, 5px 11px 20px #2e776025; transition: transform .55s cubic-bezier(.2,.7,.2,1); }
 .scene-ticket-back { top: 31px; left: 43px; transform: rotateY(-17deg) rotateZ(-18deg); }

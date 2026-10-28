@@ -13,7 +13,8 @@ html {
   --bg: #f6f8fb;
   --sidebar: 252px;
   --radius: 13px;
-  font-family: Arial, 'Segoe UI', sans-serif;
+  font-family: var(--font-merriweather), Georgia, 'Times New Roman', serif;
+  font-weight: 400;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -68,7 +69,7 @@ h1,
 h2,
 h3 {
   color: var(--navy);
-  font-weight: 650;
+  font-weight: 400;
 }
 h1 {
   font-size: 29px;
@@ -166,7 +167,7 @@ fieldset {
   padding: 10px 17px;
   white-space: nowrap;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.4;
 }
 .button.primary {
@@ -217,7 +218,7 @@ fieldset {
   gap: 6px;
   color: var(--teal);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .text-link:hover {
   color: #076d61;
@@ -260,7 +261,7 @@ fieldset {
   align-items: center;
   gap: 10px;
   font-size: 22px;
-  font-weight: 750;
+  font-weight: 400;
   letter-spacing: -0.7px;
   color: #182a40;
 }
@@ -275,7 +276,7 @@ fieldset {
   box-shadow: 0 4px 8px #0f94851a;
 }
 .brand-light {
-  font-weight: 450;
+  font-weight: 400;
 }
 .brand small {
   display: block;
@@ -283,7 +284,7 @@ fieldset {
   letter-spacing: 2.8px;
   color: #8c97a5;
   margin-top: -1px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .workspace-label {
   margin: 0 9px 30px;
@@ -308,7 +309,7 @@ fieldset {
   padding: 0 14px;
   color: #a0a9b7;
   font-size: 9px;
-  font-weight: 650;
+  font-weight: 400;
   letter-spacing: 1.2px;
   margin-bottom: 12px;
 }
@@ -322,7 +323,7 @@ fieldset {
   padding: 0 14px;
   margin: 4px 0;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   white-space: nowrap;
 }
 .nav-item svg {
@@ -335,7 +336,7 @@ fieldset {
 .nav-item.active {
   background: #e9f6f3;
   color: #087f72;
-  font-weight: 650;
+  font-weight: 400;
 }
 .nav-active-dot {
   height: 6px;
@@ -362,7 +363,7 @@ fieldset {
 }
 .support-note strong {
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 400;
   color: #405269;
 }
 .support-note p {
@@ -378,7 +379,7 @@ fieldset {
   color: #118b7c;
   font-size: 10px;
   margin-top: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .sidebar-version {
   display: flex;
@@ -439,7 +440,7 @@ fieldset {
 }
 .topbar-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: #506076;
 }
 .workspace-online {
@@ -480,7 +481,7 @@ fieldset {
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 400;
   letter-spacing: 0.2px;
   border: 2px solid #f3f7f7;
 }
@@ -488,7 +489,7 @@ fieldset {
   display: block;
   font-size: 11px;
   color: #3b4d62;
-  font-weight: 600;
+  font-weight: 400;
   max-width: 165px;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -577,7 +578,7 @@ fieldset {
 .eyebrow {
   font-size: 9px !important;
   letter-spacing: 1.3px;
-  font-weight: 600;
+  font-weight: 400;
   color: #8a97a6 !important;
   margin-bottom: 9px !important;
 }
@@ -631,7 +632,7 @@ fieldset {
   color: #4c9285;
   font-size: 8px;
   letter-spacing: 1.6px;
-  font-weight: 650;
+  font-weight: 400;
   margin-bottom: 13px;
 }
 .hero-kicker > span {
@@ -644,7 +645,7 @@ fieldset {
   font-size: 32px;
   letter-spacing: -1.1px;
   line-height: 1.26;
-  font-weight: 650;
+  font-weight: 400;
 }
 .hero h2 > span {
   color: #248d7c;
@@ -910,7 +911,7 @@ fieldset {
   letter-spacing: -1px;
   line-height: 1.2;
   margin: 5px 0 11px;
-  font-weight: 650;
+  font-weight: 400;
 }
 .stat-card > p {
   display: flex;
@@ -997,7 +998,7 @@ fieldset {
 }
 .donut-center strong {
   font-size: 29px;
-  font-weight: 650;
+  font-weight: 400;
   color: #2b3e54;
   letter-spacing: -1px;
 }
@@ -1039,7 +1040,7 @@ fieldset {
   border-radius: 2px;
 }
 .chart-legend strong {
-  font-weight: 600;
+  font-weight: 400;
   font-size: 10px;
   color: #627185;
 }
@@ -1078,7 +1079,7 @@ fieldset {
   height: 19px;
   border-radius: 5px;
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 400;
   align-items: center;
   justify-content: center;
   padding: 2px 6px;
@@ -1098,7 +1099,7 @@ th {
   background: #fafbfd;
   color: #93a0b0;
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.1px;
   padding: 10px 18px;
   border-top: 1px solid #eef1f5;
@@ -1130,7 +1131,7 @@ td:last-child {
   align-items: center;
   color: #3b4e66;
   font-size: 11px;
-  font-weight: 550;
+  font-weight: 400;
   max-width: 330px;
   white-space: normal;
 }
@@ -1142,7 +1143,7 @@ td:last-child {
   letter-spacing: 0.2px;
   color: #9da9b8;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 400;
 }
 .ticket-category {
   display: block;
@@ -1252,7 +1253,7 @@ td:last-child {
   background: #eaf0f4;
   color: #8e9dad;
   font-size: 7px;
-  font-weight: 600;
+  font-weight: 400;
   flex-shrink: 0;
 }
 .date-cell {
@@ -1384,7 +1385,7 @@ td:last-child {
   background: #e7f5f1;
   border-color: #b5dfd4;
   color: #078c7e;
-  font-weight: 600;
+  font-weight: 400;
 }
 .support-queues button:focus-visible {
   outline: 2px solid var(--teal);
@@ -1529,7 +1530,7 @@ td:last-child {
 .field {
   display: block;
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 400;
   color: #53657b;
   margin-bottom: 23px;
 }
@@ -1620,7 +1621,7 @@ td:last-child {
 }
 .help-step strong {
   font-size: 11px;
-  font-weight: 550;
+  font-weight: 400;
   color: #5b7b6b;
 }
 .help-step p {
@@ -1735,7 +1736,7 @@ td:last-child {
   font-size: 10px;
 }
 .comment-meta strong {
-  font-weight: 600;
+  font-weight: 400;
   color: #576c83;
 }
 .comment-meta > span {
@@ -1872,7 +1873,7 @@ td:last-child {
 .team-user strong {
   font-size: 11px;
   display: block;
-  font-weight: 550;
+  font-weight: 400;
   color: #53677f;
 }
 .team-user > div > span {
@@ -1938,7 +1939,7 @@ td:last-child {
   display: grid;
   place-items: center;
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 400;
   border: 5px solid #f6faf8;
   margin-bottom: 18px;
 }
@@ -2001,7 +2002,7 @@ td:last-child {
   margin-bottom: 0;
 }
 .security-panel strong {
-  font-weight: 550;
+  font-weight: 400;
   color: #768c9f;
 }
 .auth-page {
@@ -2141,7 +2142,7 @@ td:last-child {
 }
 .auth-link a {
   color: #168e7a;
-  font-weight: 550;
+  font-weight: 400;
   margin-left: 4px;
 }
 .auth-private {

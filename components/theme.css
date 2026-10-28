@@ -74,7 +74,7 @@
   color: var(--navy);
 }
 .theme-choice-label > svg { color: var(--muted); }
-.theme-choice-label strong { font-size: 13px; font-weight: 600; }
+.theme-choice-label strong { font-size: 13px; font-weight: 400; }
 .theme-choice-check {
   display: grid;
   place-items: center;
