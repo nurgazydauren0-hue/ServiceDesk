@@ -8,7 +8,7 @@
 }
 
 .profile-information.is-editing .field > input:not([readonly]) {
-  border-color: var(--teal);
+  border-color: var(--accent);
 }
 
 .profile-edit-button > svg {

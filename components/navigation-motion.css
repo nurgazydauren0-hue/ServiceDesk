@@ -40,11 +40,11 @@
   transform: scale(0.5) rotate(-30deg);
 }
 .ani-create-check circle {
-  fill: #e2f8ec;
+  fill: var(--accent-soft);
   stroke: none;
 }
 .ani-create-check path {
-  stroke: #138a55;
+  stroke: var(--accent-text);
   stroke-width: 2.3;
 }
 .ani-create.is-success .ani-create-plus {

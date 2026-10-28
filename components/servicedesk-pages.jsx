@@ -36,7 +36,6 @@ import {
   Search,
   Send,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
   Ticket,
   Trash2,
@@ -66,7 +65,7 @@ const statusColors = {
   NEW: '#5c8df6',
   IN_PROGRESS: '#6e63d9',
   WAITING: '#efad4f',
-  RESOLVED: '#16a58e',
+  RESOLVED: '#3197d5',
   CLOSED: '#a3aebc',
 };
 const priorityColors = {
@@ -437,8 +436,8 @@ function TrendChart({ data = [] }) {
         >
           <defs>
             <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#12a28e" stopOpacity={0.19} />
-              <stop offset="100%" stopColor="#12a28e" stopOpacity={0} />
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.19} />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -472,7 +471,7 @@ function TrendChart({ data = [] }) {
             name="created"
             type="monotone"
             dataKey="created"
-            stroke="#159c8a"
+            stroke="var(--accent)"
             strokeWidth={2.5}
             fill="url(#trend-fill)"
           />
@@ -549,9 +548,6 @@ export function DashboardPage() {
                   <h2>Заявки по статусам</h2>
                   <p>Как распределены обращения сейчас</p>
                 </div>
-                <span className="small-icon">
-                  <SlidersHorizontal size={17} />
-                </span>
               </div>
               <StatusChart statuses={data.statuses} total={data.counts.total} />
             </section>
