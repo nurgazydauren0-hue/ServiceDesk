@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   registrationSchema,
+  bootstrapAdminSchema,
   ticketCreateSchema,
   ticketUpdateSchema,
   commentSchema,
@@ -60,6 +61,14 @@ test('регистрация нормализует email и отклоняет 
     { ...validRegistration, name: ' ' },
   ])
     assert.throws(() => parseBody(registrationSchema, input), isStatus(400));
+});
+
+test('пароль администратора из 11 символов не меняет правила регистрации', () => {
+  const adminInput = { ...validRegistration, email: ' ADMIN@EXAMPLE.TEST ', password: 'x'.repeat(11) };
+  assert.equal(parseBody(bootstrapAdminSchema, adminInput).email, 'admin@example.test');
+  assert.throws(() => parseBody(registrationSchema, adminInput), isStatus(400));
+  assert.throws(() => parseBody(bootstrapAdminSchema, { ...adminInput, password: 'x'.repeat(10) }), isStatus(400));
+  assert.throws(() => parseBody(bootstrapAdminSchema, { ...adminInput, role: 'ADMIN' }), isStatus(400));
 });
 
 test('заявки и комментарии принимают предметные поля и ограничивают размер ввода', () => {

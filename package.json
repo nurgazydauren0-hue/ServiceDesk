@@ -18,9 +18,11 @@
     "db:local:stop": "node prisma/local-db.mjs stop",
     "db:local:status": "node prisma/local-db.mjs status",
     "db:generate": "prisma generate",
+    "db:setup": "node prisma/local-db.mjs start-if-configured && prisma generate && prisma migrate deploy",
     "db:migrate": "prisma migrate deploy",
     "db:dev": "prisma migrate dev",
     "db:bootstrap": "node --env-file-if-exists=.env prisma/bootstrap.mjs",
+    "db:admin:password": "node --env-file-if-exists=.env prisma/admin-password.mjs",
     "db:seed": "node --env-file-if-exists=.env prisma/seed.mjs",
     "db:studio": "prisma studio"
   },

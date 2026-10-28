@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { hashPassword } from '../lib/passwords.js';
-import { parseBody, registrationSchema } from '../lib/validation.js';
+import { parseBody, bootstrapAdminSchema } from '../lib/validation.js';
 
 const categoryNames = [
   'Оборудование',
@@ -11,7 +11,7 @@ const categoryNames = [
 ];
 
 try {
-  const data = parseBody(registrationSchema, {
+  const data = parseBody(bootstrapAdminSchema, {
     name: process.env.BOOTSTRAP_ADMIN_NAME || 'Администратор',
     email: process.env.BOOTSTRAP_ADMIN_EMAIL || '',
     password: process.env.BOOTSTRAP_ADMIN_PASSWORD || '',
