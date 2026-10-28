@@ -357,7 +357,7 @@ fieldset {
   padding: 17px 14px;
 }
 .support-icon {
-  color: #18a08e;
+  color: var(--accent);
   display: block;
   margin-bottom: 10px;
 }
@@ -376,7 +376,7 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #118b7c;
+  color: var(--accent-text);
   font-size: 10px;
   margin-top: 14px;
   font-weight: 400;
@@ -1193,8 +1193,8 @@ td:last-child {
   color: #395fa2;
 }
 .status-closed {
-  background: #f0f3f6;
-  color: #8e9baa;
+  background: #fdecee;
+  color: #bd3541;
 }
 .priority {
   display: inline-flex;

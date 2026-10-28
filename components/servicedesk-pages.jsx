@@ -66,7 +66,7 @@ const statusColors = {
   IN_PROGRESS: '#6e63d9',
   WAITING: '#efad4f',
   RESOLVED: '#3197d5',
-  CLOSED: '#a3aebc',
+  CLOSED: '#e0525e',
 };
 const priorityColors = {
   LOW: '#91a6bb',
