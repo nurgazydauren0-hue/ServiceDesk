@@ -1,0 +1,34 @@
+.profile-information .field > input[readonly] {
+  cursor: default;
+}
+
+.profile-information .field > input[readonly]:focus {
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.profile-information.is-editing .field > input:not([readonly]) {
+  border-color: var(--teal);
+}
+
+.profile-edit-button > svg {
+  transition: transform 180ms ease;
+}
+
+.profile-edit-button:is(:hover, :focus-visible) > svg {
+  transform: rotate(-12deg);
+}
+
+.profile-edit-actions {
+  flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-edit-button > svg {
+    transition: none;
+  }
+
+  .profile-edit-button:is(:hover, :focus-visible) > svg {
+    transform: none;
+  }
+}

@@ -4,22 +4,9 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import {
-  ArrowUpRight,
-  ChartNoAxesCombined,
-  ChevronDown,
-  Headset,
-  LayoutDashboard,
-  ListFilter,
-  LogOut,
-  Plus,
-  Settings2,
-  ShieldCheck,
-  Ticket,
-  UserRound,
-  UsersRound,
-} from 'lucide-react';
+import { ChevronDown, ShieldCheck } from 'lucide-react';
 import { SidebarToggle, useSidebar } from './sidebar-controls';
+import AnimatedNavIcon from './animated-nav-icon';
 
 const UserContext = createContext(null);
 export const useCurrentUser = () => useContext(UserContext);
@@ -40,19 +27,19 @@ export function initials(name = '') {
   );
 }
 const navigation = [
-  { href: '/', label: 'Dashboard', Icon: LayoutDashboard },
-  { href: '/tickets', label: 'Все заявки', Icon: Ticket },
-  { href: '/tickets/new', label: 'Создать заявку', Icon: Plus },
-  { href: '/my-tickets', label: 'Мои заявки', Icon: ListFilter },
-  { href: '/team', label: 'Сотрудники', Icon: UsersRound, admin: true },
-  { href: '/reports', label: 'Отчёты', Icon: ChartNoAxesCombined, admin: true },
+  { href: '/', label: 'Dashboard', kind: 'dashboard' },
+  { href: '/tickets', label: 'Все заявки', kind: 'tickets' },
+  { href: '/tickets/new', label: 'Создать заявку', kind: 'create' },
+  { href: '/my-tickets', label: 'Мои заявки', kind: 'my-tickets' },
+  { href: '/team', label: 'Сотрудники', kind: 'team', admin: true },
+  { href: '/reports', label: 'Отчёты', kind: 'reports', admin: true },
 ];
 
 export function Brand({ compact = false }) {
   return (
     <Link href="/" className="brand" aria-label="ServiceDesk — главная">
       <span className="brand-mark">
-        <Headset size={23} strokeWidth={2.1} />
+        <AnimatedNavIcon kind="headset" size={23} />
       </span>
       {!compact && (
         <span>
@@ -67,6 +54,7 @@ export function Brand({ compact = false }) {
 export default function ServiceDeskShell({ user: initialUser, children }) {
   const [user, setUser] = useState(initialUser);
   const [menu, setMenu] = useState(false);
+  const [ticketCreated, setTicketCreated] = useState(false);
   const menuRef = useRef(null);
   const sidebar = useSidebar();
   const pathname = usePathname();
@@ -82,6 +70,19 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
   useEffect(() => {
     setMenu(false);
   }, [pathname]);
+  useEffect(() => {
+    let timeout;
+    function onTicketCreated() {
+      clearTimeout(timeout);
+      setTicketCreated(true);
+      timeout = setTimeout(() => setTicketCreated(false), 2500);
+    }
+    window.addEventListener('servicedesk:ticket-created', onTicketCreated);
+    return () => {
+      window.removeEventListener('servicedesk:ticket-created', onTicketCreated);
+      clearTimeout(timeout);
+    };
+  }, []);
   useEffect(() => {
     function outside(event) {
       if (!menuRef.current?.contains(event.target)) setMenu(false);
@@ -132,7 +133,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
           <nav aria-label="Основная навигация">
             {navigation
               .filter((entry) => !entry.admin || user.role === 'ADMIN')
-              .map(({ href, label, Icon }) => (
+              .map(({ href, label, kind }) => (
                 <Link
                   key={href}
                   href={href}
@@ -140,7 +141,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
                   className={`nav-item ${pathname === href || (href === '/tickets' && pathname.startsWith('/tickets/') && pathname !== '/tickets/new') ? 'active' : ''}`}
                   aria-current={pathname === href ? 'page' : undefined}
                 >
-                  <Icon size={19} />
+                  <AnimatedNavIcon kind={kind} success={kind === 'create' && ticketCreated} />
                   <span>{label}</span>
                   {pathname === href && <span className="nav-active-dot" />}
                 </Link>
@@ -163,17 +164,9 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
                 aria-current={pathname === '/support' ? 'page' : undefined}
               >
                 {user.role === 'EMPLOYEE' ? 'Мои обращения' : 'Обращения пользователей'}
-                <ArrowUpRight size={14} />
+                <AnimatedNavIcon kind="support" size={14} />
               </Link>
             </div>
-            <Link
-              href="/settings"
-              onClick={sidebar.afterNavigate}
-              className={`nav-item ${pathname === '/settings' ? 'active' : ''}`}
-            >
-              <Settings2 size={19} />
-              <span>Настройки</span>
-            </Link>
             <div className="sidebar-version">
               <span>ServiceDesk</span>
               <span>v1.0</span>
@@ -212,13 +205,13 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
                   <div className="profile-dropdown">
                     <p>{user.email}</p>
                     <Link href="/profile">
-                      <UserRound size={16} /> Мой профиль
+                      <AnimatedNavIcon kind="profile" size={16} /> Мой профиль
                     </Link>
                     <Link href="/settings">
-                      <Settings2 size={16} /> Настройки
+                      <AnimatedNavIcon kind="settings" size={16} /> Настройки
                     </Link>
                     <button onClick={() => signOut({ callbackUrl: '/login' })}>
-                      <LogOut size={16} /> Выйти из аккаунта
+                      <AnimatedNavIcon kind="signout" size={16} /> Выйти из аккаунта
                     </button>
                   </div>
                 )}

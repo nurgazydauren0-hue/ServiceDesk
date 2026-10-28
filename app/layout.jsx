@@ -1,4 +1,6 @@
 import './globals.css';
+import '../components/theme.css';
+import { ThemeProvider } from '../components/theme-provider';
 
 export const metadata = {
   title: {
@@ -11,8 +13,18 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru">
-      <body>{children}</body>
+    <html lang="ru" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              '(function(){try{var t=localStorage.getItem("servicedesk-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()',
+          }}
+        />
+      </head>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

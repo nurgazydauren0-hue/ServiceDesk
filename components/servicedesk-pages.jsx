@@ -10,8 +10,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -24,7 +22,6 @@ import {
   ArrowUpRight,
   CalendarDays,
   Check,
-  CheckCheck,
   CircleAlert,
   CircleCheck,
   Clock3,
@@ -32,10 +29,7 @@ import {
   Headset,
   Inbox,
   LoaderCircle,
-  LockKeyhole,
-  Mail,
   MessageSquare,
-  MoreHorizontal,
   Pencil,
   Plus,
   RefreshCw,
@@ -47,11 +41,13 @@ import {
   Ticket,
   Trash2,
   TrendingUp,
-  UserRound,
   UsersRound,
   X,
 } from 'lucide-react';
 import { initials, roleLabels, useCurrentUser } from './servicedesk-shell';
+import AnimatedNavIcon from './animated-nav-icon';
+import SupportScene from './support-scene';
+import './dashboard-interactions.css';
 
 export const statusLabels = {
   NEW: 'Новая',
@@ -182,7 +178,7 @@ function Empty({
       <p>{text}</p>
       {action && (
         <Link href="/tickets/new" className="button primary">
-          <Plus size={17} /> Создать заявку
+          <AnimatedNavIcon kind="create" size={17} /> Создать заявку
         </Link>
       )}
     </div>
@@ -203,7 +199,7 @@ function PageTitle({ eyebrow, title, description, children }) {
 function NewButton() {
   return (
     <Link className="button primary" href="/tickets/new">
-      <Plus size={18} /> Создать заявку
+      <AnimatedNavIcon kind="create" size={18} /> Создать заявку
     </Link>
   );
 }
@@ -364,51 +360,68 @@ function Stats({ counts }) {
   );
 }
 function StatusChart({ statuses = [], total = 0 }) {
-  const populated = statuses.filter((entry) => entry.count > 0);
+  const [activeStatus, setActiveStatus] = useState(null);
+  const entries = Object.entries(statusLabels).map(([status, label]) => ({
+    status, label, count: statuses.find((entry) => entry.status === status)?.count || 0,
+  }));
+  const sum = entries.reduce((value, entry) => value + entry.count, 0);
+  const active = entries.find((entry) => entry.status === activeStatus);
+  let offset = 0;
   return (
-    <div className="status-chart-layout">
-      <div className="donut-wrap">
-        {populated.length ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                isAnimationActive={false}
-                data={populated}
-                dataKey="count"
-                nameKey="status"
-                innerRadius={68}
-                outerRadius={88}
-                paddingAngle={4}
-                stroke="none"
-              >
-                {populated.map((entry) => (
-                  <Cell key={entry.status} fill={statusColors[entry.status]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value, name) => [value, statusLabels[name]]}
+    <div
+      className="status-chart-layout interactive-status-chart"
+      onPointerLeave={() => setActiveStatus(null)}
+      onKeyDown={(event) => { if (event.key === 'Escape') setActiveStatus(null); }}
+    >
+      <div className="donut-wrap" style={{ '--active-status-color': active ? statusColors[active.status] : undefined }}>
+        <svg className="status-ring" viewBox="0 0 220 220" role="img" aria-label={`Заявки по статусам. ${entries.map((entry) => `${entry.label}: ${entry.count}`).join(', ')}`}>
+          <circle className="status-ring-track" cx="110" cy="110" r="78" fill="none" strokeWidth="22" />
+          {entries.map((entry) => {
+            const fraction = sum ? entry.count / sum : 0;
+            const start = offset;
+            offset += fraction * 100;
+            if (!entry.count) return null;
+            return (
+              <circle
+                key={entry.status}
+                className={`status-ring-segment ${activeStatus === entry.status ? 'is-highlighted' : ''} ${activeStatus && activeStatus !== entry.status ? 'is-muted' : ''}`}
+                cx="110" cy="110" r="78" fill="none" pathLength="100"
+                stroke={statusColors[entry.status]} strokeWidth="22"
+                strokeDasharray={`${sum === entry.count ? 100 : Math.max(.1, fraction * 100 - 1.5)} 100`}
+                strokeDashoffset={-start}
+                transform="rotate(-90 110 110)"
+                onPointerEnter={() => setActiveStatus(entry.status)}
               />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="empty-donut" />
-        )}
-        <div className="donut-center">
-          <strong>{total}</strong>
-          <span>всего заявок</span>
+            );
+          })}
+          {active && active.count === 0 && (
+            <circle className="status-ring-empty-highlight" cx="110" cy="110" r="94" fill="none" stroke={statusColors[active.status]} strokeWidth="3" />
+          )}
+        </svg>
+        <div className={`donut-center ${active ? 'is-highlighted' : ''}`}>
+          <strong>{active ? active.count : total}</strong>
+          <span>{active ? active.label : 'всего заявок'}</span>
+          {active && <small>{sum ? `${Math.round(active.count / sum * 100)}% от всех` : 'Пока нет заявок'}</small>}
         </div>
       </div>
-      <div className="chart-legend">
-        {Object.entries(statusLabels).map(([key, label]) => (
-          <div key={key}>
+      <div className="chart-legend interactive-status-legend" aria-label="Выделить статус на диаграмме">
+        {entries.map((entry) => (
+          <button
+            type="button" key={entry.status}
+            className={`status-legend-item ${activeStatus === entry.status ? 'is-highlighted' : ''}`}
+            style={{ '--status-color': statusColors[entry.status] }}
+            aria-pressed={activeStatus === entry.status}
+            onPointerEnter={() => setActiveStatus(entry.status)}
+            onFocus={() => setActiveStatus(entry.status)}
+            onBlur={() => setActiveStatus(null)}
+            onClick={() => setActiveStatus(entry.status)}
+          >
             <span>
-              <i style={{ background: statusColors[key] }} />
-              {label}
+              <i style={{ background: statusColors[entry.status] }} />
+              {entry.label}
             </span>
-            <strong>
-              {statuses.find((entry) => entry.status === key)?.count || 0}
-            </strong>
-          </div>
+            <strong>{entry.count}</strong>
+          </button>
         ))}
       </div>
     </div>
@@ -498,7 +511,7 @@ export function DashboardPage() {
           }).format(new Date())}
         </span>
       </div>
-      <section className="hero">
+      <section className="hero hero--spatial">
         <div className="hero-content">
           <span className="hero-kicker">
             <span /> ПОДДЕРЖКА, КОТОРАЯ РЯДОМ
@@ -514,45 +527,7 @@ export function DashboardPage() {
           </p>
           <NewButton />
         </div>
-        <div className="hero-art" aria-hidden="true">
-          <span className="art-ring ring-one" />
-          <span className="art-ring ring-two" />
-          <span className="art-dot dot-one" />
-          <span className="art-dot dot-two" />
-          <div className="floating-check">
-            <CheckCheck size={25} />
-          </div>
-          <div className="art-ticket">
-            <div className="art-ticket-top">
-              <span>
-                <Ticket size={18} />
-              </span>
-              <i />
-              <MoreHorizontal size={19} />
-            </div>
-            <div className="art-line long" />
-            <div className="art-line short" />
-            <div className="art-ticket-bottom">
-              <span>
-                <CircleCheck size={13} /> Задача решена
-              </span>
-              <span className="art-avatars">
-                <i>А</i>
-                <i>М</i>
-                <i>+1</i>
-              </span>
-            </div>
-          </div>
-          <div className="art-caption">
-            <span>
-              <TrendingUp size={18} />
-            </span>
-            <div>
-              <strong>Работа идёт</strong>
-              <small>Каждое обращение имеет значение</small>
-            </div>
-          </div>
-        </div>
+        <SupportScene />
       </section>
       {loading ? (
         <Loading />
@@ -948,6 +923,7 @@ export function NewTicketPage() {
         method: 'POST',
         body: JSON.stringify(values),
       });
+      window.dispatchEvent(new CustomEvent('servicedesk:ticket-created'));
       router.push(`/tickets/${result.ticket.id}?created=1`);
       router.refresh();
     } catch (error) {
@@ -1674,133 +1650,6 @@ export function ReportsPage() {
           </section>
         </>
       )}
-    </>
-  );
-}
-
-export function ProfilePage({ settings = false }) {
-  const user = useCurrentUser();
-  const [name, setName] = useState(user.name);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError('');
-    setSuccess('');
-    try {
-      const data = await request('/api/profile', {
-        method: 'PATCH',
-        body: JSON.stringify({ name }),
-      });
-      user.refreshUser(data.user);
-      setSuccess('Изменения профиля сохранены.');
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <>
-      <PageTitle
-        eyebrow="ВАШЕ ЛИЧНОЕ ПРОСТРАНСТВО"
-        title={settings ? 'Настройки аккаунта' : 'Мой профиль'}
-        description={
-          settings
-            ? 'Управляйте данными своего аккаунта и проверяйте доступ.'
-            : 'Ваши данные и роль в рабочем пространстве.'
-        }
-      />
-      <div className="profile-layout">
-        <section className="panel profile-summary">
-          <span className="profile-avatar">{initials(user.name)}</span>
-          <h2>{user.name}</h2>
-          <span className="role-badge">
-            <ShieldCheck size={14} />
-            {roleLabels[user.role]}
-          </span>
-          <p>
-            <Mail size={15} />
-            {user.email}
-          </p>
-          <div className="profile-divider" />
-          <span className="muted">
-            В команде с {date(user.createdAt, true)}
-          </span>
-          <Link href="/my-tickets" className="button secondary">
-            <Ticket size={16} /> Мои заявки
-          </Link>
-        </section>
-        <div>
-          <section className="panel form-panel">
-            <div className="form-section-title">
-              <span className="section-icon">
-                <UserRound size={21} />
-              </span>
-              <div>
-                <h2>Личная информация</h2>
-                <p>Эти данные видны вашим коллегам</p>
-              </div>
-            </div>
-            <form onSubmit={submit}>
-              <label className="field">
-                Имя и фамилия
-                <input
-                  required
-                  minLength={2}
-                  maxLength={100}
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  disabled={busy}
-                  autoComplete="name"
-                />
-              </label>
-              <label className="field">
-                Электронная почта
-                <input value={user.email} type="email" readOnly />
-                <small>Email используется для входа в систему.</small>
-              </label>
-              <Message>{error}</Message>
-              <Message success>{success}</Message>
-              <div className="form-actions">
-                <button
-                  className="button primary"
-                  disabled={busy || name.trim() === user.name}
-                >
-                  {busy ? (
-                    <LoaderCircle className="spin" size={16} />
-                  ) : (
-                    <Check size={16} />
-                  )}
-                  Сохранить изменения
-                </button>
-              </div>
-            </form>
-          </section>
-          <section className="panel security-panel">
-            <span className="section-icon">
-              <LockKeyhole size={21} />
-            </span>
-            <div>
-              <h2>Безопасность и доступ</h2>
-              <p>
-                Ваша роль: <strong>{roleLabels[user.role]}</strong>.{' '}
-                {user.role === 'ADMIN'
-                  ? 'Вам доступно управление заявками, назначениями и сотрудниками.'
-                  : user.role === 'AGENT'
-                    ? 'Вам доступны назначенные заявки, статусы и обсуждения.'
-                    : 'Вам доступны ваши заявки и общение с командой поддержки.'}
-              </p>
-              <p>
-                Пароль хранится в защищённом виде. Чтобы завершить текущую
-                сессию, выберите «Выйти из аккаунта» в меню профиля.
-              </p>
-            </div>
-          </section>
-        </div>
-      </div>
     </>
   );
 }
