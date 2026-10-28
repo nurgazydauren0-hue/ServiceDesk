@@ -3,10 +3,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import { ChevronDown, ShieldCheck } from 'lucide-react';
 import { SidebarToggle, useSidebar } from './sidebar-controls';
 import AnimatedNavIcon from './animated-nav-icon';
+import SignOutDialog from './signout-dialog';
 
 const UserContext = createContext(null);
 export const useCurrentUser = () => useContext(UserContext);
@@ -54,8 +54,10 @@ export function Brand({ compact = false }) {
 export default function ServiceDeskShell({ user: initialUser, children }) {
   const [user, setUser] = useState(initialUser);
   const [menu, setMenu] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [ticketCreated, setTicketCreated] = useState(false);
   const menuRef = useRef(null);
+  const avatarTriggerRef = useRef(null);
   const sidebar = useSidebar();
   const pathname = usePathname();
   const item = [
@@ -67,6 +69,10 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
   const title =
     item?.label ||
     (pathname.startsWith('/tickets/') ? 'Детали заявки' : 'ServiceDesk');
+  function cancelSignOut() {
+    setConfirmSignOut(false);
+    window.requestAnimationFrame(() => avatarTriggerRef.current?.focus());
+  }
   useEffect(() => {
     setMenu(false);
   }, [pathname]);
@@ -190,6 +196,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
               <div className="avatar-menu" ref={menuRef}>
                 <button
                   className="avatar-trigger"
+                  ref={avatarTriggerRef}
                   aria-expanded={menu}
                   aria-haspopup="true"
                   onClick={() => setMenu((value) => !value)}
@@ -210,7 +217,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
                     <Link href="/settings">
                       <AnimatedNavIcon kind="settings" size={16} /> Настройки
                     </Link>
-                    <button onClick={() => signOut({ callbackUrl: '/login' })}>
+                    <button onClick={() => { setMenu(false); setConfirmSignOut(true); }}>
                       <AnimatedNavIcon kind="signout" size={16} /> Выйти из аккаунта
                     </button>
                   </div>
@@ -236,6 +243,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
           </footer>
         </div>
       </div>
+      {confirmSignOut && <SignOutDialog onClose={cancelSignOut} />}
     </UserContext.Provider>
   );
 }

@@ -1,0 +1,28 @@
+.signout-dialog {
+  background: var(--surface, #fff);
+  color: var(--text);
+}
+.signout-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.signout-actions .button {
+  min-height: 44px;
+  padding: 10px 13px;
+}
+.signout-cancel {
+  background: #fff;
+  border-color: #dce3eb;
+  color: #506076;
+}
+.signout-cancel:hover {
+  background: #f5f8fa;
+  border-color: #cbd5df;
+}
+.signout-dialog .notice {
+  margin-bottom: 18px;
+}
+@media (max-width: 440px) {
+  .signout-dialog { padding: 24px; }
+  .signout-dialog h2 { font-size: 19px; }
+}
