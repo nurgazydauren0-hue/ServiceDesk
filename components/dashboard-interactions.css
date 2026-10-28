@@ -2,22 +2,26 @@
 .status-ring { width: 100%; height: 200px; overflow: visible; }
 .status-ring-track { stroke: var(--chart-track, #eff3f6); }
 .status-ring-segment { cursor: pointer; transition: opacity .2s, stroke-width .25s, filter .25s; }
-.status-ring-segment.is-highlighted { stroke-width: 29px; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--active-status-color) 45%, transparent)); }
+.status-ring-segment.is-highlighted { stroke-width: 30px; opacity: 1; filter: none; }
 .status-ring-segment.is-muted { opacity: .25; }
-.status-ring-empty-highlight { opacity: .65; filter: drop-shadow(0 0 4px var(--active-status-color)); }
+.status-ring-empty-highlight { opacity: 1; filter: none; }
 .interactive-status-chart .donut-center strong { transition: color .2s; }
-.interactive-status-chart .donut-center.is-highlighted strong { color: var(--active-status-color); }
+.interactive-status-chart .donut-center.is-highlighted strong { color: color-mix(in srgb, var(--active-status-color) 50%, #14213d); }
+.interactive-status-chart .donut-center.is-highlighted span { color: var(--text); }
 .interactive-status-chart .donut-center small { font-size: 9px; color: var(--muted); margin-top: 3px; }
 .interactive-status-legend { gap: 5px; }
 .chart-legend > .status-legend-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 10px; min-height: 33px; width: 100%; border: 1px solid transparent; background: transparent; border-radius: 7px; padding: 7px 9px; text-align: left; }
 .status-legend-item > span { display: flex; align-items: center; gap: 8px; color: var(--muted); white-space: nowrap; }
-.chart-legend > .status-legend-item.is-highlighted { background: color-mix(in srgb, var(--status-color) 8%, transparent); border-color: color-mix(in srgb, var(--status-color) 24%, transparent); }
-.status-legend-item.is-highlighted > span, .status-legend-item.is-highlighted strong { color: var(--status-color); }
+.chart-legend > .status-legend-item.is-highlighted { background: color-mix(in srgb, var(--status-color) 22%, var(--surface, #fff)); border-color: var(--status-color); box-shadow: inset 3px 0 0 var(--status-color); }
+.status-legend-item.is-highlighted > span, .status-legend-item.is-highlighted strong { color: var(--navy); }
 .status-legend-item i { transition: transform .2s, box-shadow .2s; }
-.status-legend-item.is-highlighted i { transform: scale(1.25); box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-color) 15%, transparent); }
+.status-legend-item.is-highlighted i { width: 8px; height: 8px; transform: none; box-shadow: 0 0 0 2px var(--status-color); }
 html[data-theme='dark'] .status-ring-track { stroke: #253747; }
 html[data-theme='dark'] .status-legend-item strong { color: #b2c3d2; }
-html[data-theme='dark'] .status-legend-item.is-highlighted strong { color: var(--status-color); }
+html[data-theme='dark'] .chart-legend > .status-legend-item.is-highlighted { background: color-mix(in srgb, var(--status-color) 40%, var(--surface)); }
+html[data-theme='dark'] .status-legend-item.is-highlighted > span,
+html[data-theme='dark'] .status-legend-item.is-highlighted strong { color: #eff4fb; }
 html[data-theme='dark'] .interactive-status-chart .donut-center.is-highlighted strong { color: var(--active-status-color); }
+html[data-theme='dark'] .interactive-status-chart .donut-center.is-highlighted span { color: var(--text); }
 @media (max-width: 440px) { .chart-legend > .status-legend-item { font-size: 9px; padding: 6px; gap: 7px; } .interactive-status-chart { gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .status-ring-segment, .status-legend-item i { transition: none; } }

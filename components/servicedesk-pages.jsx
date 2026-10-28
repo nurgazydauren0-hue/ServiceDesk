@@ -394,7 +394,7 @@ function StatusChart({ statuses = [], total = 0 }) {
             );
           })}
           {active && active.count === 0 && (
-            <circle className="status-ring-empty-highlight" cx="110" cy="110" r="94" fill="none" stroke={statusColors[active.status]} strokeWidth="3" />
+            <circle className="status-ring-empty-highlight" cx="110" cy="110" r={sum ? 94 : 78} fill="none" stroke={statusColors[active.status]} strokeWidth={sum ? 4 : 28} />
           )}
         </svg>
         <div className={`donut-center ${active ? 'is-highlighted' : ''}`}>
