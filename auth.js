@@ -4,6 +4,7 @@ import { prisma } from './lib/prisma.js';
 import { loginSchema } from './lib/validation.js';
 import { verifyPassword, hashPassword } from './lib/passwords.js';
 import { consumeRateLimit } from './lib/rate-limit.js';
+import { LoginServiceUnavailable, LoginRateLimited } from './lib/login-errors.js';
 
 let dummyHash;
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -34,12 +35,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: user.role,
           };
         } catch (error) {
-          if (error.status !== 429)
-            console.error(
-              'Не удалось проверить учётные данные:',
-              error.code || error.name,
-            );
-          return null;
+          if (error?.status === 429) throw new LoginRateLimited();
+          console.error(
+            'Не удалось проверить учётные данные:',
+            error?.code || error?.name || 'UnknownError',
+          );
+          throw new LoginServiceUnavailable();
         }
       },
     }),

@@ -1,8 +1,0 @@
-# Local ServiceDesk settings. Never commit this file.
-AUTH_SECRET="78uPgq1MdAXmvbvuon4cHrSdlh-E8-AmUVSevzGqsXg"
-AUTH_URL="http://localhost:3000"
-
-# Add DATABASE_URL for your existing PostgreSQL instance below.
-DATABASE_URL="postgresql://servicedesk:npg_7ndHCKWs6EYo@ep-lively-fog-b9ehjqan.c-7.eu-central-1.aws.neon.tech/servicedesk?channel_binding=require&sslmode=verify-full&schema=public"
-BOOTSTRAP_ADMIN_EMAIL="admin@servicedesk.local"
-BOOTSTRAP_ADMIN_PASSWORD="servicedesk"

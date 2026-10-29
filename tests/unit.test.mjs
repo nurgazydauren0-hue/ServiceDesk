@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Auth } from '@auth/core';
+import Credentials from '@auth/core/providers/credentials';
+import { LoginServiceUnavailable, LoginRateLimited } from '../lib/login-errors.js';
 import {
   registrationSchema,
   bootstrapAdminSchema,
@@ -222,6 +225,71 @@ test('пароли имеют случайную соль, проверяютс�
     assert.equal(await verifyPassword(password, encoded), false);
   }
   assert.equal(await verifyPassword(null, first), false);
+});
+
+test('Auth.js передаёт безопасные коды ошибок входа и сохраняет общую ошибку пароля', async () => {
+  const origin = 'http://localhost:3000';
+  const config = {
+    secret: 'isolated-auth-unit-test-secret-at-least-32-characters',
+    trustHost: true,
+    basePath: '/api/auth',
+    pages: { signIn: '/login' },
+    logger: { error() {} },
+    providers: [
+      Credentials({
+        authorize(credentials) {
+          if (credentials.password === 'unavailable')
+            throw new LoginServiceUnavailable();
+          if (credentials.password === 'limited') throw new LoginRateLimited();
+          if (credentials.password !== 'valid') return null;
+          return { id: 'fixture-user', email: 'fixture@example.test' };
+        },
+      }),
+    ],
+  };
+  for (const [password, expectedCode] of [
+    ['incorrect', 'credentials'],
+    ['unavailable', 'service_unavailable'],
+    ['limited', 'rate_limited'],
+    ['valid', null],
+  ]) {
+    const csrfResponse = await Auth(
+      new Request(`${origin}/api/auth/csrf`),
+      config,
+    );
+    const { csrfToken } = await csrfResponse.json();
+    const cookie = csrfResponse.headers
+      .getSetCookie()
+      .map((value) => value.split(';')[0])
+      .join('; ');
+    const response = await Auth(
+      new Request(`${origin}/api/auth/callback/credentials`, {
+        method: 'POST',
+        headers: {
+          Cookie: cookie,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Auth-Return-Redirect': '1',
+        },
+        body: new URLSearchParams({
+          csrfToken,
+          password,
+          callbackUrl: `${origin}/`,
+        }),
+      }),
+      config,
+    );
+    const redirect = new URL((await response.json()).url);
+    assert.equal(redirect.searchParams.get('code'), expectedCode);
+    assert.equal(
+      redirect.searchParams.get('error'),
+      expectedCode ? 'CredentialsSignin' : null,
+    );
+    if (expectedCode) assert.equal(redirect.pathname, '/login');
+    else
+      assert.ok(response.headers.getSetCookie().some((value) =>
+        value.startsWith('authjs.session-token='),
+      ));
+  }
 });
 
 test('запись отклоняет чужой Origin, даже если передан X-Forwarded-Host', () => {

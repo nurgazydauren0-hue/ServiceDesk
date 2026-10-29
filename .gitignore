@@ -9,6 +9,8 @@ data/
 *.sqlite-wal
 .env*
 !.env.example
+/env
+/env.txt
 *.log
 .DS_Store
 Thumbs.db

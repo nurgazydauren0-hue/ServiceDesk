@@ -50,12 +50,17 @@ export default function AuthForm({ register = false }) {
         password,
         redirect: false,
       });
-      if (result?.error)
+      if (result?.error) {
+        if (result.code === 'service_unavailable')
+          throw new Error('Сервис входа временно недоступен. Попробуйте позже.');
+        if (result.code === 'rate_limited')
+          throw new Error('Слишком много попыток входа. Повторите через 15 минут.');
         throw new Error(
           register
             ? 'Аккаунт создан. Войдите с указанными email и паролем.'
             : 'Неверный email или пароль. Проверьте данные и попробуйте снова.',
         );
+      }
       router.replace('/');
       router.refresh();
     } catch (error) {
