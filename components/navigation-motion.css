@@ -75,7 +75,9 @@
 }
 .ani-report-bar:nth-of-type(3) { --part-delay: 0.15s; }
 .ani-report-bar:nth-of-type(4) { --part-delay: 0.3s; }
-:where(a, button):is(:hover, :focus-visible) .ani-settings {
+:where(a, button):is(:hover, :focus-visible) .ani-settings > path {
+  transform-box: view-box;
+  transform-origin: center;
   animation: nav-gear-turn 2.5s linear infinite;
 }
 :where(a, button):is(:hover, :focus-visible) .ani-profile .ani-profile-head {
