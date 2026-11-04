@@ -7,6 +7,7 @@ import { ChevronDown, ShieldCheck } from 'lucide-react';
 import { SidebarToggle, useSidebar } from './sidebar-controls';
 import AnimatedNavIcon from './animated-nav-icon';
 import SignOutDialog from './signout-dialog';
+import { useLanguage } from './language-provider';
 
 const UserContext = createContext(null);
 export const useCurrentUser = () => useContext(UserContext);
@@ -27,7 +28,7 @@ export function initials(name = '') {
   );
 }
 const navigation = [
-  { href: '/', label: 'Dashboard', kind: 'dashboard' },
+  { href: '/', label: 'Обзор', kind: 'dashboard' },
   { href: '/tickets', label: 'Все заявки', kind: 'tickets' },
   { href: '/tickets/new', label: 'Создать заявку', kind: 'create' },
   { href: '/my-tickets', label: 'Мои заявки', kind: 'my-tickets' },
@@ -36,15 +37,16 @@ const navigation = [
 ];
 
 export function Brand({ compact = false }) {
+  const { t } = useLanguage();
   return (
-    <Link href="/" className="brand" aria-label="ServiceDesk — главная">
+    <Link href="/" className="brand" aria-label={t('ServiceDesk — главная')}>
       <span className="brand-mark">
         <AnimatedNavIcon kind="headset" size={23} />
       </span>
       {!compact && (
         <span>
           Service<span className="brand-light">Desk</span>
-          <small>WORKSPACE</small>
+          <small>{t('РАБОЧЕЕ ПРОСТРАНСТВО')}</small>
         </span>
       )}
     </Link>
@@ -52,6 +54,7 @@ export function Brand({ compact = false }) {
 }
 
 export default function ServiceDeskShell({ user: initialUser, children }) {
+  const { t } = useLanguage();
   const [user, setUser] = useState(initialUser);
   const [menu, setMenu] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -111,14 +114,14 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
           href="#main-content"
           inert={sidebar.mobile && sidebar.mobileOpen}
         >
-          К основному содержимому
+          {t('К основному содержимому')}
         </a>
         {sidebar.mobile && sidebar.mobileOpen && (
           <button
             className="sidebar-scrim"
             onClick={sidebar.close}
             tabIndex={-1}
-            aria-label="Закрыть меню"
+            aria-label={t('Закрыть меню')}
           />
         )}
         <aside
@@ -127,16 +130,16 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
           ref={sidebar.sidebarRef}
           inert={!sidebar.open}
           aria-hidden={!sidebar.open}
-          aria-label="Навигация ServiceDesk"
+          aria-label={t('Навигация ServiceDesk')}
         >
           <div className="sidebar-brand">
             <Brand />
           </div>
           <div className="workspace-label">
-            <span className="workspace-dot" /> Корпоративное пространство
+            <span className="workspace-dot" /> {t('Корпоративное пространство')}
           </div>
-          <p className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</p>
-          <nav aria-label="Основная навигация">
+          <p className="nav-caption">{t('РАБОЧЕЕ ПРОСТРАНСТВО')}</p>
+          <nav aria-label={t('Основная навигация')}>
             {navigation
               .filter((entry) => !entry.admin || user.role === 'ADMIN')
               .map(({ href, label, kind }) => (
@@ -148,7 +151,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
                   aria-current={pathname === href ? 'page' : undefined}
                 >
                   <AnimatedNavIcon kind={kind} success={kind === 'create' && ticketCreated} />
-                  <span>{label}</span>
+                  <span>{t(label)}</span>
                   {pathname === href && <span className="nav-active-dot" />}
                 </Link>
               ))}
@@ -158,18 +161,18 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
               <span className="support-icon">
                 <ShieldCheck size={22} />
               </span>
-              <strong>Центр поддержки</strong>
+              <strong>{t('Центр поддержки')}</strong>
               <p>
-                {user.role === 'EMPLOYEE'
+                {t(user.role === 'EMPLOYEE'
                   ? 'Следите за ответами и статусом своих обращений'
-                  : 'Просматривайте обращения пользователей и помогайте с решением'}
+                  : 'Просматривайте обращения пользователей и помогайте с решением')}
               </p>
               <Link
                 href="/support"
                 onClick={sidebar.afterNavigate}
                 aria-current={pathname === '/support' ? 'page' : undefined}
               >
-                {user.role === 'EMPLOYEE' ? 'Мои обращения' : 'Обращения пользователей'}
+                {t(user.role === 'EMPLOYEE' ? 'Мои обращения' : 'Обращения пользователей')}
                 <AnimatedNavIcon kind="support" size={14} />
               </Link>
             </div>
@@ -184,14 +187,14 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
             <div className="topbar-start">
               <SidebarToggle sidebar={sidebar} />
               <span className="topbar-divider" />
-              <span className="topbar-title">{title}</span>
+              <span className="topbar-title">{t(title)}</span>
             </div>
             <div
               className="topbar-end"
               inert={sidebar.mobile && sidebar.mobileOpen}
             >
               <span className="workspace-online">
-                <i /> Рабочее пространство
+                <i /> {t('Рабочее пространство')}
               </span>
               <div className="avatar-menu" ref={menuRef}>
                 <button
@@ -204,7 +207,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
                   <span className="avatar">{initials(user.name)}</span>
                   <span className="avatar-text">
                     <strong>{user.name}</strong>
-                    <small>{roleLabels[user.role]}</small>
+                    <small>{t(roleLabels[user.role])}</small>
                   </span>
                   <ChevronDown size={15} />
                 </button>
@@ -212,13 +215,13 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
                   <div className="profile-dropdown">
                     <p>{user.email}</p>
                     <Link href="/profile">
-                      <AnimatedNavIcon kind="profile" size={16} /> Мой профиль
+                      <AnimatedNavIcon kind="profile" size={16} /> {t('Мой профиль')}
                     </Link>
                     <Link href="/settings">
-                      <AnimatedNavIcon kind="settings" size={16} /> Настройки
+                      <AnimatedNavIcon kind="settings" size={16} /> {t('Настройки')}
                     </Link>
                     <button onClick={() => { setMenu(false); setConfirmSignOut(true); }}>
-                      <AnimatedNavIcon kind="signout" size={16} /> Выйти из аккаунта
+                      <AnimatedNavIcon kind="signout" size={16} /> {t('Выйти из аккаунта')}
                     </button>
                   </div>
                 )}
@@ -238,7 +241,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
           >
             <span>© {new Date().getFullYear()} ServiceDesk</span>
             <span>
-              <span className="footer-dot" /> Ваша команда. Ваш рабочий ритм.
+              <span className="footer-dot" /> {t('Ваша команда. Ваш рабочий ритм.')}
             </span>
           </footer>
         </div>

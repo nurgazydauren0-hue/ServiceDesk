@@ -1,0 +1,9 @@
+.auth-page .auth-main {
+  padding-top: 72px;
+}
+
+.auth-language {
+  position: absolute;
+  top: 18px;
+  inset-inline-end: clamp(16px, 4vw, 40px);
+}

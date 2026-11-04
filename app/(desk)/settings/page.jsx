@@ -1,5 +1,7 @@
 import SettingsPage from '../../../components/settings-page';
-export const metadata = { title: 'Настройки' };
+import { localizedMetadata } from '../../../lib/request-language';
+
+export const generateMetadata = localizedMetadata('Настройки');
 export default function Page() {
   return <SettingsPage />;
 }

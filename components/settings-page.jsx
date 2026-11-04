@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, Moon, Palette, Sun } from 'lucide-react';
+import { Check, Languages, Moon, Palette, Sun } from 'lucide-react';
+import { LanguageSwitcher, useLanguage } from './language-provider';
 import { useTheme } from './theme-provider';
 
 const themes = [
@@ -9,29 +10,42 @@ const themes = [
 ];
 
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const { theme, setTheme } = useTheme();
 
   return (
     <div className="settings-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО</p>
-          <h1>Настройки</h1>
-          <p>Сделайте ServiceDesk удобным для себя.</p>
+          <p className="eyebrow">{t('ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО')}</p>
+          <h1>{t('Настройки')}</h1>
+          <p>{t('Сделайте ServiceDesk удобным для себя.')}</p>
         </div>
       </div>
+
+      <section className="panel theme-settings language-settings" aria-labelledby="language-title">
+        <div className="theme-settings-heading">
+          <span className="section-icon"><Languages size={21} /></span>
+          <div>
+            <h2 id="language-title">{t('Язык интерфейса')}</h2>
+            <p>{t('Выберите язык, на котором будет работать ServiceDesk.')}</p>
+          </div>
+        </div>
+        <LanguageSwitcher />
+        <p className="theme-settings-note">{t('Язык сохраняется автоматически в этом браузере.')}</p>
+      </section>
 
       <section className="panel theme-settings" aria-labelledby="appearance-title">
         <div className="theme-settings-heading">
           <span className="section-icon"><Palette size={21} /></span>
           <div>
-            <h2 id="appearance-title">Внешний вид</h2>
-            <p>Выберите тему оформления интерфейса.</p>
+            <h2 id="appearance-title">{t('Внешний вид')}</h2>
+            <p>{t('Выберите тему оформления интерфейса.')}</p>
           </div>
         </div>
 
         <fieldset className="theme-choices">
-          <legend className="sr-only">Тема оформления</legend>
+          <legend className="sr-only">{t('Тема оформления')}</legend>
           {themes.map(({ value, label, description, Icon }) => (
             <label className="theme-choice" key={value}>
               <input
@@ -61,15 +75,15 @@ export default function SettingsPage() {
                 </span>
                 <span className="theme-choice-label">
                   <Icon size={18} />
-                  <strong>{label}</strong>
+                  <strong>{t(label)}</strong>
                   <span className="theme-choice-check" aria-hidden="true"><Check size={13} strokeWidth={3} /></span>
                 </span>
-                <span className="theme-choice-description">{description}</span>
+                <span className="theme-choice-description">{t(description)}</span>
               </span>
             </label>
           ))}
         </fieldset>
-        <p className="theme-settings-note">Тема сохраняется автоматически в этом браузере.</p>
+        <p className="theme-settings-note">{t('Тема сохраняется автоматически в этом браузере.')}</p>
       </section>
     </div>
   );

@@ -1,7 +1,11 @@
+'use client';
+
 import { Check, Headset, MessageSquare, Plus, Ticket } from 'lucide-react';
+import { useLanguage } from './language-provider';
 import './support-scene.css';
 
 export default function SupportScene() {
+  const { t } = useLanguage();
   return (
     <div className="support-scene" aria-hidden="true">
       <div className="support-scene-glow" />
@@ -19,7 +23,7 @@ export default function SupportScene() {
         <div className="scene-mini-progress"><i /><i /><i /></div>
       </div>
       <div className="scene-hub-shadow" />
-      <div className="scene-hub"><Headset size={49} strokeWidth={1.8} /><span>SUPPORT</span></div>
+      <div className="scene-hub"><Headset size={49} strokeWidth={1.8} /><span>{t('ПОДДЕРЖКА')}</span></div>
       <div className="scene-ticket scene-ticket-front">
         <span className="scene-ticket-symbol"><Ticket size={18} /><i /></span>
         <span className="scene-ticket-line" /><span className="scene-ticket-line short" />

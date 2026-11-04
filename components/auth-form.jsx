@@ -12,13 +12,15 @@ import {
   Headset,
   LoaderCircle,
   LockKeyhole,
-  ShieldCheck,
   UsersRound,
 } from 'lucide-react';
 import { Brand } from './servicedesk-shell';
 import { Message } from './servicedesk-pages';
+import { LanguageSwitcher, useLanguage } from './language-provider';
+import './auth-form.css';
 
 export default function AuthForm({ register = false }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -30,6 +32,10 @@ export default function AuthForm({ register = false }) {
     const form = new FormData(event.currentTarget);
     const email = String(form.get('email')).trim();
     const password = String(form.get('password'));
+    const fail = (message) => {
+      setError(message);
+      setBusy(false);
+    };
     try {
       if (register) {
         const response = await fetch('/api/register', {
@@ -42,8 +48,9 @@ export default function AuthForm({ register = false }) {
           }),
         });
         const data = await response.json();
-        if (!response.ok)
-          throw new Error(data.error || 'Не удалось создать аккаунт.');
+        if (!response.ok) {
+          return fail(data.error || 'Не удалось создать аккаунт.');
+        }
       }
       const result = await signIn('credentials', {
         email,
@@ -52,10 +59,10 @@ export default function AuthForm({ register = false }) {
       });
       if (result?.error) {
         if (result.code === 'service_unavailable')
-          throw new Error('Сервис входа временно недоступен. Попробуйте позже.');
+          return fail('Сервис входа временно недоступен. Попробуйте позже.');
         if (result.code === 'rate_limited')
-          throw new Error('Слишком много попыток входа. Повторите через 15 минут.');
-        throw new Error(
+          return fail('Слишком много попыток входа. Повторите через 15 минут.');
+        return fail(
           register
             ? 'Аккаунт создан. Войдите с указанными email и паролем.'
             : 'Неверный email или пароль. Проверьте данные и попробуйте снова.',
@@ -63,9 +70,8 @@ export default function AuthForm({ register = false }) {
       }
       router.replace('/');
       router.refresh();
-    } catch (error) {
-      setError(error.message || 'Не удалось войти. Попробуйте ещё раз.');
-      setBusy(false);
+    } catch {
+      fail('Не удалось войти. Попробуйте ещё раз.');
     }
   }
   return (
@@ -73,60 +79,62 @@ export default function AuthForm({ register = false }) {
       <aside className="auth-story">
         <Brand />
         <div className="auth-story-main">
-          <p className="eyebrow">РАБОТА СТАНОВИТСЯ ПРОЩЕ</p>
+          <p className="eyebrow">{t('РАБОТА СТАНОВИТСЯ ПРОЩЕ')}</p>
           <h1>
-            Хорошая поддержка.
+            {t('Хорошая поддержка.')}
             <br />
-            <span>Сильная команда.</span>
+            <span>{t('Сильная команда.')}</span>
           </h1>
           <p>
-            Единое пространство, где обращения находят решение, а команда
-            работает в одном ритме.
+            {t('Единое пространство, где обращения находят решение, а команда работает в одном ритме.')}
           </p>
           <div className="auth-feature">
             <span>
               <Headset size={19} />
             </span>
-            Вся IT-поддержка в одном месте
+            {t('Вся IT-поддержка в одном месте')}
           </div>
           <div className="auth-feature">
             <span>
               <CircleCheck size={19} />
             </span>
-            Прозрачные статусы и понятные процессы
+            {t('Прозрачные статусы и понятные процессы')}
           </div>
           <div className="auth-feature">
             <span>
               <UsersRound size={19} />
             </span>
-            Командная работа без лишних сложностей
+            {t('Командная работа без лишних сложностей')}
           </div>
         </div>
-        <div className="auth-story-footer">ServiceDesk · Ваш рабочий ритм</div>
+        <div className="auth-story-footer">{t('ServiceDesk · Ваш рабочий ритм')}</div>
         <div className="auth-decoration" />
       </aside>
       <main className="auth-main">
+        <div className="auth-language">
+          <LanguageSwitcher />
+        </div>
         <div className="auth-form">
           <div className="auth-mobile-brand">
             <Brand />
           </div>
-          <p className="eyebrow">ДОБРО ПОЖАЛОВАТЬ В SERVICEDESK</p>
-          <h2>{register ? 'Присоединяйтесь к команде' : 'С возвращением'}</h2>
+          <p className="eyebrow">{t('ДОБРО ПОЖАЛОВАТЬ В SERVICEDESK')}</p>
+          <h2>{t(register ? 'Присоединяйтесь к команде' : 'С возвращением')}</h2>
           <p className="auth-description">
-            {register
+            {t(register
               ? 'Создайте аккаунт и получайте помощь, когда она нужна.'
-              : 'Войдите в аккаунт, чтобы продолжить рабочий день.'}
+              : 'Войдите в аккаунт, чтобы продолжить рабочий день.')}
           </p>
           <form onSubmit={submit}>
             <fieldset disabled={busy}>
               {register && (
                 <label className="field" htmlFor="name">
-                  Имя и фамилия
+                  {t('Имя и фамилия')}
                   <input
                     id="name"
                     name="name"
                     autoComplete="name"
-                    placeholder="Александр Иванов"
+                    placeholder={t('Александр Иванов')}
                     required
                     minLength={2}
                     maxLength={100}
@@ -134,19 +142,19 @@ export default function AuthForm({ register = false }) {
                 </label>
               )}
               <label className="field" htmlFor="email">
-                Рабочая почта
+                {t('Рабочая почта')}
                 <input
                   id="email"
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="you@company.ru"
+                  placeholder={t('you@company.ru')}
                   required
                   maxLength={254}
                 />
               </label>
               <label className="field" htmlFor="password">
-                Пароль
+                {t('Пароль')}
                 <div className="password-field">
                   <input
                     id="password"
@@ -155,18 +163,18 @@ export default function AuthForm({ register = false }) {
                     autoComplete={
                       register ? 'new-password' : 'current-password'
                     }
-                    placeholder={
+                    placeholder={t(
                       register ? 'Придумайте надёжный пароль' : 'Введите пароль'
-                    }
+                    )}
                     required
                     minLength={register ? 12 : 1}
                     maxLength={128}
                   />
                   <button
                     type="button"
-                    aria-label={
+                    aria-label={t(
                       showPassword ? 'Скрыть пароль' : 'Показать пароль'
-                    }
+                    )}
                     onClick={() => setShowPassword((value) => !value)}
                   >
                     {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -174,7 +182,7 @@ export default function AuthForm({ register = false }) {
                 </div>
                 {register && (
                   <small className="password-hint">
-                    Не менее 12 символов: используйте буквы и цифры.
+                    {t('Не менее 12 символов: используйте буквы и цифры.')}
                   </small>
                 )}
               </label>
@@ -182,31 +190,29 @@ export default function AuthForm({ register = false }) {
             <Message>{error}</Message>
             <button className="button primary" disabled={busy}>
               {busy ? <LoaderCircle size={17} className="spin" /> : null}
-              {busy
+              {t(busy
                 ? register
                   ? 'Создаём аккаунт…'
                   : 'Входим…'
                 : register
                   ? 'Создать аккаунт'
-                  : 'Войти в аккаунт'}
+                  : 'Войти в аккаунт')}
               {!busy && <ArrowRight size={16} />}
             </button>
             {register && (
               <p className="registration-note">
-                Новый аккаунт получает роль сотрудника. Администратор сможет
-                изменить вашу роль в рабочем пространстве.
+                {t('Новый аккаунт получает роль сотрудника. Администратор сможет изменить вашу роль в рабочем пространстве.')}
               </p>
             )}
           </form>
           <p className="auth-link">
-            {register ? 'Уже есть аккаунт?' : 'Ещё нет аккаунта?'}
+            {t(register ? 'Уже есть аккаунт?' : 'Ещё нет аккаунта?')}
             <Link href={register ? '/login' : '/register'}>
-              {register ? 'Войти' : 'Зарегистрироваться'}
+              {t(register ? 'Войти' : 'Зарегистрироваться')}
             </Link>
           </p>
           <p className="auth-private">
-            <LockKeyhole size={12} /> Защищённое рабочее пространство вашей
-            команды
+            <LockKeyhole size={12} /> {t('Защищённое рабочее пространство вашей команды')}
           </p>
         </div>
       </main>

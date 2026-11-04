@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { CircleAlert, LoaderCircle, LogOut } from 'lucide-react';
+import { useLanguage } from './language-provider';
 import './signout-dialog.css';
 
 export default function SignOutDialog({ onClose }) {
+  const { t } = useLanguage();
   const dialogRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -54,22 +56,22 @@ export default function SignOutDialog({ onClose }) {
       }}
     >
       <div className="dialog-icon" aria-hidden="true"><LogOut size={25} /></div>
-      <h2 id="signout-dialog-title">Выйти из аккаунта?</h2>
+      <h2 id="signout-dialog-title">{t('Выйти из аккаунта?')}</h2>
       <p id="signout-dialog-description">
-        Вы уверены, что хотите выйти? Для продолжения работы потребуется войти снова.
+        {t('Вы уверены, что хотите выйти? Для продолжения работы потребуется войти снова.')}
       </p>
       {error && (
         <div className="notice notice-error" role="alert">
-          <CircleAlert size={18} /><span>{error}</span>
+          <CircleAlert size={18} /><span>{t(error)}</span>
         </div>
       )}
       <div className="form-actions signout-actions">
         <button type="button" className="button signout-cancel" onClick={onClose} disabled={busy} autoFocus>
-          Отмена
+          {t('Отмена')}
         </button>
         <button type="button" className="button danger" onClick={confirm} disabled={busy}>
           {busy ? <LoaderCircle className="spin" size={16} /> : <LogOut size={16} />}
-          {busy ? 'Выходим…' : 'Да, выйти'}
+          {t(busy ? 'Выходим…' : 'Да, выйти')}
         </button>
       </div>
     </dialog>

@@ -1,5 +1,7 @@
 import { NewTicketPage } from '../../../../components/servicedesk-pages';
-export const metadata = { title: 'Новая заявка' };
+import { localizedMetadata } from '../../../../lib/request-language';
+
+export const generateMetadata = localizedMetadata('Новая заявка');
 export default function Page() {
   return <NewTicketPage />;
 }

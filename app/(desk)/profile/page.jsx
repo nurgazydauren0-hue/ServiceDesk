@@ -1,5 +1,7 @@
 import ProfilePage from '../../../components/profile-page';
-export const metadata = { title: 'Мой профиль' };
+import { localizedMetadata } from '../../../lib/request-language';
+
+export const generateMetadata = localizedMetadata('Мой профиль');
 export default function Page() {
   return <ProfilePage />;
 }

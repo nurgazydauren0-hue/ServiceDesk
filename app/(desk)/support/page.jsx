@@ -1,6 +1,8 @@
 import { SupportPage } from '../../../components/servicedesk-pages';
 
-export const metadata = { title: 'Поддержка — обращения пользователей' };
+import { localizedMetadata } from '../../../lib/request-language';
+
+export const generateMetadata = localizedMetadata('Поддержка — обращения пользователей');
 
 export default function Page() {
   return <SupportPage />;

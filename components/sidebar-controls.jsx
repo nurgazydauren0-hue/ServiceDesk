@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useLanguage } from './language-provider';
 
 const STORAGE_KEY = 'servicedesk.sidebar-collapsed';
 
@@ -133,9 +134,10 @@ export function useSidebar() {
 }
 
 export function SidebarToggle({ sidebar }) {
-  const label = sidebar.open
+  const { t } = useLanguage();
+  const label = t(sidebar.open
     ? 'Скрыть боковую панель'
-    : 'Раскрыть боковую панель';
+    : 'Раскрыть боковую панель');
   return (
     <button
       type="button"

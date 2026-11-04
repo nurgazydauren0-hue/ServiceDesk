@@ -1,5 +1,7 @@
 import { TicketDetailPage } from '../../../../components/servicedesk-pages';
-export const metadata = { title: 'Детали заявки' };
+import { localizedMetadata } from '../../../../lib/request-language';
+
+export const generateMetadata = localizedMetadata('Детали заявки');
 export default async function Page({ params, searchParams }) {
   const { id } = await params;
   const query = await searchParams;

@@ -32,6 +32,8 @@
   max-width: 820px;
   padding: 30px;
 }
+.language-settings { margin-bottom: 20px; }
+.language-settings .theme-settings-heading { margin-bottom: 20px; }
 .theme-settings-heading {
   display: flex;
   align-items: center;

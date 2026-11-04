@@ -46,6 +46,7 @@ import {
 import { initials, roleLabels, useCurrentUser } from './servicedesk-shell';
 import AnimatedNavIcon from './animated-nav-icon';
 import SupportScene from './support-scene';
+import { useLanguage } from './language-provider';
 import './dashboard-interactions.css';
 
 export const statusLabels = {
@@ -74,24 +75,41 @@ const priorityColors = {
   HIGH: '#e9a64b',
   URGENT: '#e46b73',
 };
-const date = (value, withTime = false) =>
+const builtInCategories = new Set([
+  'Оборудование',
+  'Программное обеспечение',
+  'Сеть и интернет',
+  'Доступы и учётные записи',
+  'Другое',
+]);
+
+const categoryLabel = (name, t) => builtInCategories.has(name) ? t(name) : name;
+
+const date = (value, locale, withTime = false) =>
   value
-    ? new Intl.DateTimeFormat('ru-RU', {
+    ? new Intl.DateTimeFormat(locale, {
         day: '2-digit',
         month: 'short',
         year: withTime ? 'numeric' : undefined,
+        ...(/^\d{4}-\d{2}-\d{2}$/.test(value) ? { timeZone: 'UTC' } : {}),
         ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
       }).format(new Date(value))
     : '—';
 export async function request(url, options = {}) {
-  const response = await fetch(url, {
-    cache: 'no-store',
-    ...options,
-    headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...options.headers,
-    },
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      cache: 'no-store',
+      ...options,
+      headers: {
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...options.headers,
+      },
+    });
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
+    throw new Error('Не удалось связаться с сервером. Повторите попытку.');
+  }
   if (response.status === 204) return null;
   let data;
   try {
@@ -105,7 +123,7 @@ export async function request(url, options = {}) {
   }
   if (!response.ok)
     throw new Error(
-      typeof data.error === 'string'
+      typeof data?.error === 'string'
         ? data.error
         : 'Не удалось выполнить действие. Проверьте данные и повторите попытку.',
     );
@@ -130,35 +148,38 @@ function useResource(url, version = 0) {
   }, [url, version, refresh]);
   return { ...state, reload: () => setRefresh((value) => value + 1) };
 }
-export function Message({ children, success = false }) {
+export function Message({ children, success = false, values }) {
+  const { t } = useLanguage();
   return children ? (
     <div
       className={`notice ${success ? 'notice-success' : 'notice-error'}`}
       role={success ? 'status' : 'alert'}
     >
       {success ? <CircleCheck size={18} /> : <CircleAlert size={18} />}
-      <span>{children}</span>
+      <span>{typeof children === 'string' ? t(children, values) : children}</span>
     </div>
   ) : null;
 }
 function Loading() {
+  const { t } = useLanguage();
   return (
     <div className="loading-state" role="status">
       <LoaderCircle className="spin" size={25} />
-      <span>Загружаем данные…</span>
+      <span>{t('Загружаем данные…')}</span>
     </div>
   );
 }
 function ResourceError({ error, retry }) {
+  const { t } = useLanguage();
   return (
     <div className="empty-state">
       <span className="empty-icon error-icon">
         <CircleAlert size={25} />
       </span>
-      <h3>Не удалось загрузить данные</h3>
-      <p>{error}</p>
+      <h3>{t('Не удалось загрузить данные')}</h3>
+      <p>{t(error)}</p>
       <button className="button secondary" onClick={retry}>
-        <RefreshCw size={16} /> Повторить попытку
+        <RefreshCw size={16} /> {t('Повторить попытку')}
       </button>
     </div>
   );
@@ -168,49 +189,54 @@ function Empty({
   text = 'Создайте первую заявку — команда поддержки поможет решить вашу задачу.',
   action = true,
 }) {
+  const { t } = useLanguage();
   return (
     <div className="empty-state">
       <span className="empty-icon">
         <Inbox size={28} />
       </span>
-      <h3>{title}</h3>
-      <p>{text}</p>
+      <h3>{t(title)}</h3>
+      <p>{t(text)}</p>
       {action && (
         <Link href="/tickets/new" className="button primary">
-          <AnimatedNavIcon kind="create" size={17} /> Создать заявку
+          <AnimatedNavIcon kind="create" size={17} /> {t('Создать заявку')}
         </Link>
       )}
     </div>
   );
 }
 function PageTitle({ eyebrow, title, description, children }) {
+  const { t } = useLanguage();
   return (
     <div className="page-heading">
       <div>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>{title}</h1>
-        {description && <p>{description}</p>}
+        {eyebrow && <p className="eyebrow">{t(eyebrow)}</p>}
+        <h1>{t(title)}</h1>
+        {description && <p>{t(description)}</p>}
       </div>
       {children}
     </div>
   );
 }
 function NewButton() {
+  const { t } = useLanguage();
   return (
     <Link className="button primary" href="/tickets/new">
-      <AnimatedNavIcon kind="create" size={18} /> Создать заявку
+      <AnimatedNavIcon kind="create" size={18} /> {t('Создать заявку')}
     </Link>
   );
 }
 function Status({ value }) {
+  const { t } = useLanguage();
   return (
     <span className={`badge status-${value?.toLowerCase()}`}>
       <i />
-      {statusLabels[value] || value}
+      {statusLabels[value] ? t(statusLabels[value]) : value}
     </span>
   );
 }
 function Priority({ value }) {
+  const { t } = useLanguage();
   return (
     <span className={`priority priority-${value?.toLowerCase()}`}>
       <span className="priority-bars">
@@ -218,34 +244,36 @@ function Priority({ value }) {
         <i />
         <i />
       </span>
-      {priorityLabels[value] || value}
+      {priorityLabels[value] ? t(priorityLabels[value]) : value}
     </span>
   );
 }
 function UserName({ user }) {
+  const { t } = useLanguage();
   return user ? (
     <span className="user-cell">
       <span className="mini-avatar">{initials(user.name)}</span>
       <span>{user.name}</span>
     </span>
   ) : (
-    <span className="muted">Не назначен</span>
+    <span className="muted">{t('Не назначен')}</span>
   );
 }
 function TicketTable({ tickets, compact = false, support = false }) {
+  const { t, locale } = useLanguage();
   return (
     <div className="table-scroll">
       <table className="ticket-table">
         <thead>
           <tr>
-            <th>Заявка</th>
-            {!compact && <th>{support ? 'Автор обращения' : 'Категория'}</th>}
-            <th>Приоритет</th>
-            <th>Статус</th>
-            <th>Исполнитель</th>
-            <th>Создана</th>
+            <th>{t('Заявка')}</th>
+            {!compact && <th>{support ? t('Автор обращения') : t('Категория')}</th>}
+            <th>{t('Приоритет')}</th>
+            <th>{t('Статус')}</th>
+            <th>{t('Исполнитель')}</th>
+            <th>{t('Создана')}</th>
             <th>
-              <span className="sr-only">Открыть</span>
+              <span className="sr-only">{t('Открыть')}</span>
             </th>
           </tr>
         </thead>
@@ -261,7 +289,7 @@ function TicketTable({ tickets, compact = false, support = false }) {
                 </Link>
                 {(compact || support) && (
                   <span className="ticket-category">
-                    {ticket.category?.name}
+                    {categoryLabel(ticket.category?.name, t)}
                   </span>
                 )}
               </td>
@@ -276,7 +304,7 @@ function TicketTable({ tickets, compact = false, support = false }) {
                     </div>
                   ) : (
                     <span className="category-label">
-                      {ticket.category?.name || '—'}
+                      {categoryLabel(ticket.category?.name, t) || '—'}
                     </span>
                   )}
                 </td>
@@ -290,12 +318,12 @@ function TicketTable({ tickets, compact = false, support = false }) {
               <td>
                 <UserName user={ticket.assignedTo} />
               </td>
-              <td className="date-cell">{date(ticket.createdAt)}</td>
+              <td className="date-cell">{date(ticket.createdAt, locale)}</td>
               <td>
                 <Link
                   href={`/tickets/${ticket.id}`}
                   className="table-arrow"
-                  aria-label={`Открыть заявку ${ticket.id}`}
+                  aria-label={t('Открыть заявку {id}', { id: ticket.id })}
                 >
                   <ArrowUpRight size={17} />
                 </Link>
@@ -308,6 +336,7 @@ function TicketTable({ tickets, compact = false, support = false }) {
   );
 }
 function Stats({ counts }) {
+  const { t, locale } = useLanguage();
   const cards = [
     {
       label: 'Всего заявок',
@@ -343,15 +372,15 @@ function Stats({ counts }) {
       {cards.map(({ label, value, Icon, color, caption }) => (
         <article className="stat-card" key={label}>
           <div className="stat-top">
-            <span>{label}</span>
+            <span>{t(label)}</span>
             <span className={`stat-icon ${color}`}>
               <Icon size={21} />
             </span>
           </div>
-          <strong>{value ?? 0}</strong>
+          <strong>{(value ?? 0).toLocaleString(locale)}</strong>
           <p>
             <span className={`stat-dot ${color}`} />
-            {caption}
+            {t(caption)}
           </p>
         </article>
       ))}
@@ -359,9 +388,10 @@ function Stats({ counts }) {
   );
 }
 function StatusChart({ statuses = [], total = 0 }) {
+  const { t, locale } = useLanguage();
   const [activeStatus, setActiveStatus] = useState(null);
   const entries = Object.entries(statusLabels).map(([status, label]) => ({
-    status, label, count: statuses.find((entry) => entry.status === status)?.count || 0,
+    status, label: t(label), count: statuses.find((entry) => entry.status === status)?.count || 0,
   }));
   const sum = entries.reduce((value, entry) => value + entry.count, 0);
   const active = entries.find((entry) => entry.status === activeStatus);
@@ -373,7 +403,14 @@ function StatusChart({ statuses = [], total = 0 }) {
       onKeyDown={(event) => { if (event.key === 'Escape') setActiveStatus(null); }}
     >
       <div className="donut-wrap" style={{ '--active-status-color': active ? statusColors[active.status] : undefined }}>
-        <svg className="status-ring" viewBox="0 0 220 220" role="img" aria-label={`Заявки по статусам. ${entries.map((entry) => `${entry.label}: ${entry.count}`).join(', ')}`}>
+        <svg
+          className="status-ring"
+          viewBox="0 0 220 220"
+          role="img"
+          aria-label={t('Заявки по статусам. {breakdown}', {
+            breakdown: entries.map((entry) => `${entry.label}: ${entry.count.toLocaleString(locale)}`).join(', '),
+          })}
+        >
           <circle className="status-ring-track" cx="110" cy="110" r="78" fill="none" strokeWidth="18" />
           {entries.map((entry) => {
             const fraction = sum ? entry.count / sum : 0;
@@ -398,12 +435,17 @@ function StatusChart({ statuses = [], total = 0 }) {
           )}
         </svg>
         <div className={`donut-center ${active ? 'is-highlighted' : ''}`}>
-          <strong>{active ? active.count : total}</strong>
-          <span>{active ? active.label : 'всего заявок'}</span>
-          {active && <small>{sum ? `${Math.round(active.count / sum * 100)}% от всех` : 'Пока нет заявок'}</small>}
+          <strong>{(active ? active.count : total).toLocaleString(locale)}</strong>
+          <span>{active ? active.label : t('всего заявок')}</span>
+          {active && (
+            <small>{sum
+              ? t('{percent} от всех', { percent: (active.count / sum).toLocaleString(locale, { style: 'percent' }) })
+              : t('Пока нет заявок')}
+            </small>
+          )}
         </div>
       </div>
-      <div className="chart-legend interactive-status-legend" aria-label="Выделить статус на диаграмме">
+      <div className="chart-legend interactive-status-legend" aria-label={t('Выделить статус на диаграмме')}>
         {entries.map((entry) => (
           <button
             type="button" key={entry.status}
@@ -419,7 +461,7 @@ function StatusChart({ statuses = [], total = 0 }) {
               <i style={{ background: statusColors[entry.status] }} />
               {entry.label}
             </span>
-            <strong>{entry.count}</strong>
+            <strong>{entry.count.toLocaleString(locale)}</strong>
           </button>
         ))}
       </div>
@@ -427,6 +469,7 @@ function StatusChart({ statuses = [], total = 0 }) {
   );
 }
 function TrendChart({ data = [] }) {
+  const { t, locale } = useLanguage();
   return (
     <div className="trend-chart">
       <ResponsiveContainer width="100%" height={220}>
@@ -447,7 +490,7 @@ function TrendChart({ data = [] }) {
           />
           <XAxis
             dataKey="date"
-            tickFormatter={(value) => date(value)}
+            tickFormatter={(value) => date(value, locale)}
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 11, fill: '#8a95a5' }}
@@ -455,20 +498,18 @@ function TrendChart({ data = [] }) {
           />
           <YAxis
             allowDecimals={false}
+            tickFormatter={(value) => value.toLocaleString(locale)}
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 11, fill: '#8a95a5' }}
           />
           <Tooltip
-            labelFormatter={(value) => date(value)}
-            formatter={(value, name) => [
-              value,
-              name === 'created' ? 'Создано' : 'Решено',
-            ]}
+            labelFormatter={(value) => date(value, locale)}
+            formatter={(value) => value.toLocaleString(locale)}
           />
           <Area
             isAnimationActive={false}
-            name="created"
+            name={t('Создано')}
             type="monotone"
             dataKey="created"
             stroke="var(--accent)"
@@ -477,7 +518,7 @@ function TrendChart({ data = [] }) {
           />
           <Area
             isAnimationActive={false}
-            name="resolved"
+            name={t('Решено')}
             type="monotone"
             dataKey="resolved"
             stroke="#8293c7"
@@ -491,19 +532,20 @@ function TrendChart({ data = [] }) {
 }
 
 export function DashboardPage() {
+  const { t, locale } = useLanguage();
   const user = useCurrentUser();
   const { data, loading, error, reload } = useResource('/api/dashboard');
   return (
     <>
       <div className="dashboard-welcome">
         <div>
-          <p className="eyebrow">ВАШ РАБОЧИЙ ДЕНЬ, ОДНИМ ВЗГЛЯДОМ</p>
-          <h1>Обзор рабочего пространства</h1>
-          <p>Здравствуйте, {user.name.split(' ')[0]}. Всё важное — здесь.</p>
+          <p className="eyebrow">{t('ВАШ РАБОЧИЙ ДЕНЬ, ОДНИМ ВЗГЛЯДОМ')}</p>
+          <h1>{t('Обзор рабочего пространства')}</h1>
+          <p>{t('Здравствуйте, {name}. Всё важное — здесь.', { name: user.name.split(' ')[0] })}</p>
         </div>
         <span className="today-label">
           <CalendarDays size={16} />
-          {new Intl.DateTimeFormat('ru-RU', {
+          {new Intl.DateTimeFormat(locale, {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
@@ -513,16 +555,15 @@ export function DashboardPage() {
       <section className="hero hero--spatial">
         <div className="hero-content">
           <span className="hero-kicker">
-            <span /> ПОДДЕРЖКА, КОТОРАЯ РЯДОМ
+            <span /> {t('ПОДДЕРЖКА, КОТОРАЯ РЯДОМ')}
           </span>
           <h2>
-            Управляй заявками.
+            {t('Управляй заявками.')}
             <br />
-            <span>Решай задачи быстрее.</span>
+            <span>{t('Решай задачи быстрее.')}</span>
           </h2>
           <p>
-            Все обращения сотрудников, статусы выполнения и работа команды — в
-            одной системе.
+            {t('Все обращения сотрудников, статусы выполнения и работа команды — в одной системе.')}
           </p>
           <NewButton />
         </div>
@@ -535,9 +576,9 @@ export function DashboardPage() {
       ) : (
         <>
           <div className="section-line">
-            <h2>Пульс поддержки</h2>
+            <h2>{t('Пульс поддержки')}</h2>
             <span>
-              <span className="live-dot" /> Актуальные данные
+              <span className="live-dot" /> {t('Актуальные данные')}
             </span>
           </div>
           <Stats counts={data.counts} />
@@ -545,8 +586,8 @@ export function DashboardPage() {
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <h2>Заявки по статусам</h2>
-                  <p>Как распределены обращения сейчас</p>
+                  <h2>{t('Заявки по статусам')}</h2>
+                  <p>{t('Как распределены обращения сейчас')}</p>
                 </div>
               </div>
               <StatusChart statuses={data.statuses} total={data.counts.total} />
@@ -554,18 +595,18 @@ export function DashboardPage() {
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <h2>Динамика обращений</h2>
-                  <p>Созданные и решённые заявки</p>
+                  <h2>{t('Динамика обращений')}</h2>
+                  <p>{t('Созданные и решённые заявки')}</p>
                 </div>
-                <span className="period-label">Последние 14 дней</span>
+                <span className="period-label">{t('Последние 14 дней')}</span>
               </div>
               <TrendChart data={data.trend} />
               <div className="trend-key">
                 <span>
-                  <i /> Создано
+                  <i /> {t('Создано')}
                 </span>
                 <span>
-                  <i /> Решено
+                  <i /> {t('Решено')}
                 </span>
               </div>
             </section>
@@ -574,15 +615,15 @@ export function DashboardPage() {
             <div className="panel-heading">
               <div>
                 <h2>
-                  Последние заявки{' '}
+                  {t('Последние заявки')}{' '}
                   <span className="count-pill">
-                    {data.recentTickets.length}
+                    {data.recentTickets.length.toLocaleString(locale)}
                   </span>
                 </h2>
-                <p>Недавно созданные обращения сотрудников</p>
+                <p>{t('Недавно созданные обращения сотрудников')}</p>
               </div>
               <Link href="/tickets" className="text-link">
-                Все заявки <ArrowRight size={15} />
+                {t('Все заявки')} <ArrowRight size={15} />
               </Link>
             </div>
             {data.recentTickets.length ? (
@@ -611,6 +652,7 @@ export function SupportPage() {
 }
 
 export function TicketsPage({ mine = false, support = false }) {
+  const { t, locale } = useLanguage();
   const user = useCurrentUser();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -670,7 +712,7 @@ export function TicketsPage({ mine = false, support = false }) {
       >
         {support ? (
           <button className="button secondary" onClick={reload} disabled={loading}>
-            <RefreshCw size={17} /> Обновить
+            <RefreshCw size={17} /> {t('Обновить')}
           </button>
         ) : (
           <NewButton />
@@ -678,7 +720,7 @@ export function TicketsPage({ mine = false, support = false }) {
       </PageTitle>
       <section className="panel">
         {support && (
-          <div className="support-queues" role="group" aria-label="Статус обращений">
+          <div className="support-queues" role="group" aria-label={t('Статус обращений')}>
             {supportQueues.map(([value, label]) => (
               <button
                 key={value}
@@ -689,7 +731,7 @@ export function TicketsPage({ mine = false, support = false }) {
                   setPage(1);
                 }}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -698,75 +740,77 @@ export function TicketsPage({ mine = false, support = false }) {
           <label className="search-field">
             <Search size={18} />
             <input
-              aria-label="Поиск заявок"
+              aria-label={t('Поиск заявок')}
               value={search}
-              placeholder="Поиск по названию или номеру…"
+              placeholder={t('Поиск по названию или номеру…')}
               onChange={(event) => setSearch(event.target.value)}
             />
             {search && (
-              <button aria-label="Очистить поиск" onClick={() => setSearch('')}>
+              <button aria-label={t('Очистить поиск')} onClick={() => setSearch('')}>
                 <X size={15} />
               </button>
             )}
           </label>
           {!support && (
             <select
-              aria-label="Статус заявки"
+              aria-label={t('Статус заявки')}
               value={status}
               onChange={(event) => {
                 setStatus(event.target.value);
                 setPage(1);
               }}
             >
-              <option value="">Все статусы</option>
+              <option value="">{t('Все статусы')}</option>
               {Object.entries(statusLabels).map(([key, label]) => (
                 <option value={key} key={key}>
-                  {label}
+                  {t(label)}
                 </option>
               ))}
             </select>
           )}
           <select
-            aria-label="Приоритет заявки"
+            aria-label={t('Приоритет заявки')}
             value={priority}
             onChange={(event) => {
               setPriority(event.target.value);
               setPage(1);
             }}
           >
-            <option value="">Все приоритеты</option>
+            <option value="">{t('Все приоритеты')}</option>
             {Object.entries(priorityLabels).map(([key, label]) => (
               <option value={key} key={key}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </select>
           <select
-            aria-label="Сортировка заявок"
+            aria-label={t('Сортировка заявок')}
             value={sort}
             onChange={(event) => {
               setSort(event.target.value);
               setPage(1);
             }}
           >
-            <option value="newest">Сначала новые</option>
-            <option value="oldest">Сначала старые</option>
-            <option value="priority">По приоритету</option>
-            <option value="updated">По обновлению</option>
+            <option value="newest">{t('Сначала новые')}</option>
+            <option value="oldest">{t('Сначала старые')}</option>
+            <option value="priority">{t('По приоритету')}</option>
+            <option value="updated">{t('По обновлению')}</option>
           </select>
         </div>
         {(support || filtered) && (
           <div className="filter-summary">
             <span aria-live="polite">
               {loading
-                ? 'Загрузка обращений…'
+                ? t('Загрузка обращений…')
                 : error
-                  ? 'Данные недоступны'
-                  : `Найдено ${support ? 'обращений' : 'заявок'}: ${data.total}`}
+                  ? t('Данные недоступны')
+                  : t(support ? 'Найдено обращений: {total}' : 'Найдено заявок: {total}', {
+                    total: data.total.toLocaleString(locale),
+                  })}
             </span>
             {filtered && (
               <button onClick={reset}>
-                Сбросить фильтры <X size={13} />
+                {t('Сбросить фильтры')} <X size={13} />
               </button>
             )}
           </div>
@@ -780,8 +824,11 @@ export function TicketsPage({ mine = false, support = false }) {
             <TicketTable tickets={data.tickets} support={support} />
             <div className="pagination">
               <span>
-                Показано {(page - 1) * data.pageSize + 1}–
-                {Math.min(page * data.pageSize, data.total)} из {data.total}
+                {t('Показано {first}–{last} из {total}', {
+                  first: ((page - 1) * data.pageSize + 1).toLocaleString(locale),
+                  last: Math.min(page * data.pageSize, data.total).toLocaleString(locale),
+                  total: data.total.toLocaleString(locale),
+                })}
               </span>
               <div>
                 <button
@@ -789,17 +836,17 @@ export function TicketsPage({ mine = false, support = false }) {
                   disabled={page === 1}
                   onClick={() => setPage((value) => value - 1)}
                 >
-                  <ArrowLeft size={15} /> Назад
+                  <ArrowLeft size={15} /> {t('Назад')}
                 </button>
                 <span>
-                  {page} / {Math.ceil(data.total / data.pageSize)}
+                  {page.toLocaleString(locale)} / {Math.ceil(data.total / data.pageSize).toLocaleString(locale)}
                 </span>
                 <button
                   className="button secondary small"
                   disabled={page * data.pageSize >= data.total}
                   onClick={() => setPage((value) => value + 1)}
                 >
-                  Далее <ArrowRight size={15} />
+                  {t('Далее')} <ArrowRight size={15} />
                 </button>
               </div>
             </div>
@@ -824,18 +871,18 @@ export function TicketsPage({ mine = false, support = false }) {
         )}
       </section>
       <p className="page-note">
-        <ShieldCheck size={14} /> Вы видите заявки в соответствии с правами
-        вашей роли.
+        <ShieldCheck size={14} /> {t('Вы видите заявки в соответствии с правами вашей роли.')}
       </p>
     </>
   );
 }
 
 function TicketFields({ values, onChange, categories }) {
+  const { t } = useLanguage();
   return (
     <>
       <label className="field">
-        Название проблемы <span>*</span>
+        {t('Название проблемы')} <span>*</span>
         <input
           name="title"
           required
@@ -843,12 +890,12 @@ function TicketFields({ values, onChange, categories }) {
           maxLength={160}
           value={values.title}
           onChange={onChange}
-          placeholder="Например, не подключается корпоративный Wi-Fi"
+          placeholder={t('Например, не подключается корпоративный Wi-Fi')}
         />
-        <small>Кратко опишите, с чем нужна помощь.</small>
+        <small>{t('Кратко опишите, с чем нужна помощь.')}</small>
       </label>
       <label className="field">
-        Подробное описание <span>*</span>
+        {t('Подробное описание')} <span>*</span>
         <textarea
           name="description"
           required
@@ -857,31 +904,31 @@ function TicketFields({ values, onChange, categories }) {
           rows={7}
           value={values.description}
           onChange={onChange}
-          placeholder="Что произошло? Когда появилась проблема? Что вы уже пробовали?"
+          placeholder={t('Что произошло? Когда появилась проблема? Что вы уже пробовали?')}
         />
         <small>
-          Чем больше полезных деталей, тем быстрее мы сможем помочь.
+          {t('Чем больше полезных деталей, тем быстрее мы сможем помочь.')}
         </small>
       </label>
       <div className="form-grid">
         <label className="field">
-          Категория <span>*</span>
+          {t('Категория')} <span>*</span>
           <select
             name="categoryId"
             required
             value={values.categoryId}
             onChange={onChange}
           >
-            <option value="">Выберите категорию</option>
+            <option value="">{t('Выберите категорию')}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {categoryLabel(category.name, t)}
               </option>
             ))}
           </select>
         </label>
         <label className="field">
-          Приоритет <span>*</span>
+          {t('Приоритет')} <span>*</span>
           <select
             name="priority"
             required
@@ -890,7 +937,7 @@ function TicketFields({ values, onChange, categories }) {
           >
             {Object.entries(priorityLabels).map(([key, label]) => (
               <option key={key} value={key}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </select>
@@ -900,6 +947,7 @@ function TicketFields({ values, onChange, categories }) {
   );
 }
 export function NewTicketPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { data, loading, error, reload } = useResource('/api/categories');
   const [values, setValues] = useState({
@@ -930,7 +978,7 @@ export function NewTicketPage() {
   return (
     <>
       <Link className="back-link" href="/tickets">
-        <ArrowLeft size={16} /> К списку заявок
+        <ArrowLeft size={16} /> {t('К списку заявок')}
       </Link>
       <PageTitle
         eyebrow="ДАВАЙТЕ РЕШИМ ЭТО ВМЕСТЕ"
@@ -944,8 +992,8 @@ export function NewTicketPage() {
               <FileText size={21} />
             </span>
             <div>
-              <h2>Информация о проблеме</h2>
-              <p>Поля со звёздочкой обязательны для заполнения</p>
+              <h2>{t('Информация о проблеме')}</h2>
+              <p>{t('Поля со звёздочкой обязательны для заполнения')}</p>
             </div>
           </div>
           {loading ? (
@@ -969,12 +1017,12 @@ export function NewTicketPage() {
               <Message>{failure}</Message>
               {!data.categories.length && (
                 <Message>
-                  Категории пока не настроены. Обратитесь к администратору.
+                  {'Категории пока не настроены. Обратитесь к администратору.'}
                 </Message>
               )}
               <div className="form-actions">
                 <Link className="button secondary" href="/tickets">
-                  Отмена
+                  {t('Отмена')}
                 </Link>
                 <button
                   className="button primary"
@@ -985,7 +1033,7 @@ export function NewTicketPage() {
                   ) : (
                     <Send size={17} />
                   )}
-                  {busy ? 'Отправляем…' : 'Отправить заявку'}
+                  {busy ? t('Отправляем…') : t('Отправить заявку')}
                 </button>
               </div>
             </form>
@@ -995,37 +1043,35 @@ export function NewTicketPage() {
           <span className="help-circle">
             <Headset size={27} />
           </span>
-          <h3>Мы здесь, чтобы помочь</h3>
+          <h3>{t('Мы здесь, чтобы помочь')}</h3>
           <p>
-            После отправки обращение появится в списке заявок. Вы сможете
-            следить за статусом и общаться с исполнителем.
+            {t('После отправки обращение появится в списке заявок. Вы сможете следить за статусом и общаться с исполнителем.')}
           </p>
           <div className="help-step">
             <span>1</span>
             <div>
-              <strong>Опишите проблему</strong>
-              <p>Добавьте детали и выберите категорию</p>
+              <strong>{t('Опишите проблему')}</strong>
+              <p>{t('Добавьте детали и выберите категорию')}</p>
             </div>
           </div>
           <div className="help-step">
             <span>2</span>
             <div>
-              <strong>Команда подключится</strong>
-              <p>Администратор назначит исполнителя</p>
+              <strong>{t('Команда подключится')}</strong>
+              <p>{t('Администратор назначит исполнителя')}</p>
             </div>
           </div>
           <div className="help-step">
             <span>3</span>
             <div>
-              <strong>Следите за решением</strong>
-              <p>Все обновления будут в карточке заявки</p>
+              <strong>{t('Следите за решением')}</strong>
+              <p>{t('Все обновления будут в карточке заявки')}</p>
             </div>
           </div>
           <div className="help-tip">
             <Sparkles size={18} />
             <p>
-              Срочный приоритет используйте, если проблема блокирует работу
-              компании.
+              {t('Срочный приоритет используйте, если проблема блокирует работу компании.')}
             </p>
           </div>
         </aside>
@@ -1035,6 +1081,7 @@ export function NewTicketPage() {
 }
 
 function ConfirmDelete({ onClose, onConfirm, busy, error }) {
+  const { t } = useLanguage();
   const ref = useRef(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -1055,23 +1102,24 @@ function ConfirmDelete({ onClose, onConfirm, busy, error }) {
       <div className="dialog-icon">
         <Trash2 size={24} />
       </div>
-      <h2>Удалить заявку?</h2>
+      <h2>{t('Удалить заявку?')}</h2>
       <p>
-        Заявка и все её комментарии будут удалены. Восстановить их не получится.
+        {t('Заявка и все её комментарии будут удалены. Восстановить их не получится.')}
       </p>
       <Message>{error}</Message>
       <div className="form-actions">
         <button className="button secondary" disabled={busy} onClick={onClose}>
-          Отмена
+          {t('Отмена')}
         </button>
         <button className="button danger" disabled={busy} onClick={onConfirm}>
-          {busy ? 'Удаляем…' : 'Удалить заявку'}
+          {busy ? t('Удаляем…') : t('Удалить заявку')}
         </button>
       </div>
     </dialog>
   );
 }
 export function TicketDetailPage({ id, created = false }) {
+  const { t, locale } = useLanguage();
   const user = useCurrentUser();
   const router = useRouter();
   const { data, loading, error, reload } = useResource(`/api/tickets/${id}`);
@@ -1150,7 +1198,7 @@ export function TicketDetailPage({ id, created = false }) {
   return (
     <>
       <Link className="back-link" href="/tickets">
-        <ArrowLeft size={16} /> К списку заявок
+        <ArrowLeft size={16} /> {t('К списку заявок')}
       </Link>
       <div className="detail-heading">
         <div>
@@ -1162,7 +1210,7 @@ export function TicketDetailPage({ id, created = false }) {
           </div>
           <h1>{ticket.title}</h1>
           <p>
-            Создана {date(ticket.createdAt, true)} <span>·</span>{' '}
+            {t('Создана {date}', { date: date(ticket.createdAt, locale, true) })} <span>·</span>{' '}
             {ticket.createdBy?.name}
           </p>
         </div>
@@ -1180,13 +1228,13 @@ export function TicketDetailPage({ id, created = false }) {
                 setEditing(true);
               }}
             >
-              <Pencil size={16} /> Изменить
+              <Pencil size={16} /> {t('Изменить')}
             </button>
           )}
           {editable && (
             <button
               className="button icon-button danger-ghost"
-              aria-label="Удалить заявку"
+              aria-label={t('Удалить заявку')}
               onClick={() => {
                 setFailure('');
                 setDeleting(true);
@@ -1209,7 +1257,7 @@ export function TicketDetailPage({ id, created = false }) {
                   update(values);
                 }}
               >
-                <h2>Редактирование заявки</h2>
+                <h2>{t('Редактирование заявки')}</h2>
                 <fieldset disabled={busy}>
                   <TicketFields
                     values={values}
@@ -1229,17 +1277,17 @@ export function TicketDetailPage({ id, created = false }) {
                     disabled={busy}
                     onClick={() => setEditing(false)}
                   >
-                    Отмена
+                    {t('Отмена')}
                   </button>
                   <button className="button primary" disabled={busy}>
-                    Сохранить изменения
+                    {t('Сохранить изменения')}
                   </button>
                 </div>
               </form>
             ) : (
               <>
                 <h2>
-                  <FileText size={19} /> Описание проблемы
+                  <FileText size={19} /> {t('Описание проблемы')}
                 </h2>
                 <p className="description-text">{ticket.description}</p>
               </>
@@ -1247,8 +1295,8 @@ export function TicketDetailPage({ id, created = false }) {
           </section>
           <section className="panel comments-panel">
             <h2>
-              <MessageSquare size={19} /> Обсуждение{' '}
-              <span className="count-pill">{ticket.comments?.length || 0}</span>
+              <MessageSquare size={19} /> {t('Обсуждение')}{' '}
+              <span className="count-pill">{(ticket.comments?.length || 0).toLocaleString(locale)}</span>
             </h2>
             <div className="comments-list">
               {ticket.comments?.length ? (
@@ -1260,8 +1308,8 @@ export function TicketDetailPage({ id, created = false }) {
                     <div>
                       <div className="comment-meta">
                         <strong>{entry.author?.name}</strong>
-                        <span>{roleLabels[entry.author?.role]}</span>
-                        <time>{date(entry.createdAt, true)}</time>
+                        <span>{t(roleLabels[entry.author?.role] || '')}</span>
+                        <time>{date(entry.createdAt, locale, true)}</time>
                       </div>
                       <p>{entry.content}</p>
                     </div>
@@ -1269,18 +1317,17 @@ export function TicketDetailPage({ id, created = false }) {
                 ))
               ) : (
                 <p className="no-comments">
-                  Пока без комментариев. Добавьте детали или задайте вопрос
-                  команде.
+                  {t('Пока без комментариев. Добавьте детали или задайте вопрос команде.')}
                 </p>
               )}
             </div>
             <form onSubmit={addComment} className="comment-form">
               <label className="sr-only" htmlFor="comment">
-                Ваш комментарий
+                {t('Ваш комментарий')}
               </label>
               <textarea
                 id="comment"
-                placeholder="Напишите комментарий…"
+                placeholder={t('Напишите комментарий…')}
                 required
                 minLength={1}
                 maxLength={4000}
@@ -1290,26 +1337,26 @@ export function TicketDetailPage({ id, created = false }) {
                 disabled={busy}
               />
               <div>
-                <span>Комментарии видны участникам заявки</span>
+                <span>{t('Комментарии видны участникам заявки')}</span>
                 <button
                   className="button primary small"
                   disabled={busy || !comment.trim()}
                 >
-                  <Send size={15} /> Отправить
+                  <Send size={15} /> {t('Отправить')}
                 </button>
               </div>
             </form>
           </section>
         </div>
         <aside className="panel ticket-properties">
-          <h2>Детали заявки</h2>
+          <h2>{t('Детали заявки')}</h2>
           <dl>
             <div>
-              <dt>Статус</dt>
+              <dt>{t('Статус')}</dt>
               <dd>
                 {canStatus ? (
                   <select
-                    aria-label="Изменить статус"
+                    aria-label={t('Изменить статус')}
                     value={ticket.status}
                     disabled={busy}
                     onChange={(event) =>
@@ -1321,7 +1368,7 @@ export function TicketDetailPage({ id, created = false }) {
                   >
                     {Object.entries(statusLabels).map(([key, label]) => (
                       <option key={key} value={key}>
-                        {label}
+                        {t(label)}
                       </option>
                     ))}
                   </select>
@@ -1331,21 +1378,21 @@ export function TicketDetailPage({ id, created = false }) {
               </dd>
             </div>
             <div>
-              <dt>Приоритет</dt>
+              <dt>{t('Приоритет')}</dt>
               <dd>
                 <Priority value={ticket.priority} />
               </dd>
             </div>
             <div>
-              <dt>Категория</dt>
-              <dd>{ticket.category?.name}</dd>
+              <dt>{t('Категория')}</dt>
+              <dd>{categoryLabel(ticket.category?.name, t)}</dd>
             </div>
             <div>
-              <dt>Исполнитель</dt>
+              <dt>{t('Исполнитель')}</dt>
               <dd>
                 {user.role === 'ADMIN' ? (
                   <select
-                    aria-label="Назначить исполнителя"
+                    aria-label={t('Назначить исполнителя')}
                     disabled={busy || team.loading || !!team.error}
                     value={ticket.assignedToId || ''}
                     onChange={(event) =>
@@ -1355,7 +1402,7 @@ export function TicketDetailPage({ id, created = false }) {
                       )
                     }
                   >
-                    <option value="">Не назначен</option>
+                    <option value="">{t('Не назначен')}</option>
                     {team.data?.users
                       ?.filter(
                         (entry) =>
@@ -1372,32 +1419,31 @@ export function TicketDetailPage({ id, created = false }) {
                 )}
                 {team.error && user.role === 'ADMIN' && (
                   <small className="field-error">
-                    Не удалось загрузить исполнителей.{' '}
-                    <button onClick={team.reload}>Повторить</button>
+                    {t('Не удалось загрузить исполнителей.')}{' '}
+                    <button onClick={team.reload}>{t('Повторить')}</button>
                   </small>
                 )}
               </dd>
             </div>
             <div>
-              <dt>Автор заявки</dt>
+              <dt>{t('Автор заявки')}</dt>
               <dd>
                 <UserName user={ticket.createdBy} />
               </dd>
             </div>
             <div>
-              <dt>Дата создания</dt>
-              <dd>{date(ticket.createdAt, true)}</dd>
+              <dt>{t('Дата создания')}</dt>
+              <dd>{date(ticket.createdAt, locale, true)}</dd>
             </div>
             <div>
-              <dt>Последнее обновление</dt>
-              <dd>{date(ticket.updatedAt, true)}</dd>
+              <dt>{t('Последнее обновление')}</dt>
+              <dd>{date(ticket.updatedAt, locale, true)}</dd>
             </div>
           </dl>
           <div className="property-note">
             <ShieldCheck size={17} />
             <p>
-              История общения и актуальный статус всегда доступны в этой
-              карточке.
+              {t('История общения и актуальный статус всегда доступны в этой карточке.')}
             </p>
           </div>
         </aside>
@@ -1415,6 +1461,7 @@ export function TicketDetailPage({ id, created = false }) {
 }
 
 export function TeamPage() {
+  const { t, locale } = useLanguage();
   const current = useCurrentUser();
   const { data, loading, error, reload } = useResource('/api/team');
   const [busy, setBusy] = useState('');
@@ -1430,7 +1477,7 @@ export function TeamPage() {
         method: 'PATCH',
         body: JSON.stringify({ role }),
       });
-      setSuccess(`Роль пользователя ${user.name} обновлена.`);
+      setSuccess(user.name);
       reload();
     } catch (error) {
       setFailure(error.message);
@@ -1450,18 +1497,22 @@ export function TeamPage() {
         description="Управляйте ролями и распределяйте нагрузку команды поддержки."
       />
       <Message>{failure}</Message>
-      <Message success>{success}</Message>
+      {success && (
+        <Message success values={{ name: success }}>
+          {'Роль пользователя {name} обновлена.'}
+        </Message>
+      )}
       <section className="panel">
         <div className="panel-heading">
           <h2>
-            Сотрудники{' '}
-            <span className="count-pill">{data?.users?.length || 0}</span>
+            {t('Сотрудники')}{' '}
+            <span className="count-pill">{(data?.users?.length || 0).toLocaleString(locale)}</span>
           </h2>
           <label className="search-field">
             <Search size={17} />
             <input
-              aria-label="Поиск сотрудника"
-              placeholder="Имя или email"
+              aria-label={t('Поиск сотрудника')}
+              placeholder={t('Имя или email')}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -1476,11 +1527,11 @@ export function TeamPage() {
             <table className="team-table">
               <thead>
                 <tr>
-                  <th>Сотрудник</th>
-                  <th>Роль</th>
-                  <th>Назначено заявок</th>
-                  <th>В работе / открыто</th>
-                  <th>Дата регистрации</th>
+                  <th>{t('Сотрудник')}</th>
+                  <th>{t('Роль')}</th>
+                  <th>{t('Назначено заявок')}</th>
+                  <th>{t('В работе / открыто')}</th>
+                  <th>{t('Дата регистрации')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1493,7 +1544,7 @@ export function TeamPage() {
                           <strong>
                             {user.name}
                             {user.id === current.id && (
-                              <small className="you-label">это вы</small>
+                              <small className="you-label">{t('это вы')}</small>
                             )}
                           </strong>
                           <span>{user.email}</span>
@@ -1502,7 +1553,7 @@ export function TeamPage() {
                     </td>
                     <td>
                       <select
-                        aria-label={`Роль пользователя ${user.name}`}
+                        aria-label={t('Роль пользователя {name}', { name: user.name })}
                         value={user.role}
                         disabled={!!busy || user.id === current.id}
                         onChange={(event) =>
@@ -1511,18 +1562,18 @@ export function TeamPage() {
                       >
                         {Object.entries(roleLabels).map(([key, label]) => (
                           <option key={key} value={key}>
-                            {label}
+                            {t(label)}
                           </option>
                         ))}
                       </select>
                     </td>
-                    <td>{user.assignedCount}</td>
+                    <td>{user.assignedCount.toLocaleString(locale)}</td>
                     <td>
                       <span className="count-pill">
-                        {user.openAssignedCount}
+                        {user.openAssignedCount.toLocaleString(locale)}
                       </span>
                     </td>
-                    <td className="date-cell">{date(user.createdAt, true)}</td>
+                    <td className="date-cell">{date(user.createdAt, locale, true)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1537,14 +1588,14 @@ export function TeamPage() {
         )}
       </section>
       <p className="page-note">
-        <ShieldCheck size={15} /> Сотрудник работает со своими заявками.
-        Исполнитель решает назначенные. Администратор управляет системой.
+        <ShieldCheck size={15} /> {t('Сотрудник работает со своими заявками. Исполнитель решает назначенные. Администратор управляет системой.')}
       </p>
     </>
   );
 }
 
 export function ReportsPage() {
+  const { t, locale } = useLanguage();
   const { data, loading, error, reload } = useResource('/api/reports');
   return (
     <>
@@ -1555,10 +1606,10 @@ export function ReportsPage() {
       />
       <div className="report-info">
         <span>
-          <CalendarDays size={17} /> Общая статистика за всё время
+          <CalendarDays size={17} /> {t('Общая статистика за всё время')}
         </span>
         <span>
-          <span className="live-dot" /> Данные из системы
+          <span className="live-dot" /> {t('Данные из системы')}
         </span>
       </div>
       {loading ? (
@@ -1572,8 +1623,8 @@ export function ReportsPage() {
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <h2>Распределение по статусам</h2>
-                  <p>Текущее состояние всех обращений</p>
+                  <h2>{t('Распределение по статусам')}</h2>
+                  <p>{t('Текущее состояние всех обращений')}</p>
                 </div>
               </div>
               <StatusChart statuses={data.statuses} total={data.counts.total} />
@@ -1581,8 +1632,8 @@ export function ReportsPage() {
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <h2>Приоритет обращений</h2>
-                  <p>На какие задачи направлено внимание</p>
+                  <h2>{t('Приоритет обращений')}</h2>
+                  <p>{t('На какие задачи направлено внимание')}</p>
                 </div>
               </div>
               <div className="priority-chart">
@@ -1598,22 +1649,23 @@ export function ReportsPage() {
                     />
                     <XAxis
                       dataKey="priority"
-                      tickFormatter={(value) => priorityLabels[value]}
+                      tickFormatter={(value) => t(priorityLabels[value] || value)}
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 12 }}
                     />
                     <YAxis
                       allowDecimals={false}
+                      tickFormatter={(value) => value.toLocaleString(locale)}
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 12 }}
                     />
                     <Tooltip
-                      formatter={(value) => [value, 'Заявок']}
-                      labelFormatter={(value) => priorityLabels[value]}
+                      formatter={(value) => value.toLocaleString(locale)}
+                      labelFormatter={(value) => t(priorityLabels[value] || value)}
                     />
-                    <Bar isAnimationActive={false} dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                    <Bar isAnimationActive={false} dataKey="count" name={t('Заявок')} radius={[6, 6, 0, 0]} maxBarSize={48}>
                       {data.priorities.map((entry) => (
                         <Cell
                           key={entry.priority}
@@ -1629,18 +1681,18 @@ export function ReportsPage() {
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <h2>Динамика работы поддержки</h2>
-                <p>Созданные и решённые заявки за последние 14 дней</p>
+                <h2>{t('Динамика работы поддержки')}</h2>
+                <p>{t('Созданные и решённые заявки за последние 14 дней')}</p>
               </div>
-              <span className="period-label">14 дней</span>
+              <span className="period-label">{t('14 дней')}</span>
             </div>
             <TrendChart data={data.trend} />
             <div className="trend-key">
               <span>
-                <i /> Создано
+                <i /> {t('Создано')}
               </span>
               <span>
-                <i /> Решено
+                <i /> {t('Решено')}
               </span>
             </div>
           </section>

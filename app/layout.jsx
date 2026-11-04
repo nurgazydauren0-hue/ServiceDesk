@@ -1,6 +1,10 @@
 import './globals.css';
 import '../components/theme.css';
+import '../components/language-switcher.css';
 import { ThemeProvider } from '../components/theme-provider';
+import { LanguageProvider } from '../components/language-provider';
+import { createTranslator } from '../lib/i18n';
+import { getRequestLocale } from '../lib/request-language';
 import localFont from 'next/font/local';
 
 const merriweather = localFont({
@@ -13,18 +17,21 @@ const merriweather = localFont({
   adjustFontFallback: 'Times New Roman',
 });
 
-export const metadata = {
-  title: {
-    default: 'ServiceDesk — работа под контролем',
-    template: '%s · ServiceDesk',
-  },
-  description:
-    'Заявки сотрудников, работа команды и прозрачная IT-поддержка в одной системе.',
-};
+export async function generateMetadata() {
+  const t = createTranslator(await getRequestLocale());
+  return {
+    title: {
+      default: t('ServiceDesk — работа под контролем'),
+      template: '%s · ServiceDesk',
+    },
+    description: t('Заявки сотрудников, работа команды и прозрачная IT-поддержка в одной системе.'),
+  };
+}
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const locale = await getRequestLocale();
   return (
-    <html lang="ru" className={merriweather.variable} data-theme="light" suppressHydrationWarning>
+    <html lang={locale} className={merriweather.variable} data-theme="light" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -34,7 +41,9 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <LanguageProvider initialLocale={locale}>
+          <ThemeProvider>{children}</ThemeProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
