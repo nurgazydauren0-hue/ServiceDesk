@@ -11,6 +11,7 @@ export function useSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const toggleRef = useRef(null);
   const sidebarRef = useRef(null);
+  const headerRef = useRef(null);
   const previouslyMobileOpen = useRef(false);
 
   // На сервере и при первой отрисовке состояние одинаково.
@@ -85,19 +86,24 @@ export function useSidebar() {
     function handleKey(event) {
       if (document.querySelector('dialog[open]')) return;
       if (event.key === 'Escape') {
+        // Header popovers close first; a second Escape closes the drawer.
+        if (headerRef.current?.querySelector('[data-header-menu-trigger][aria-expanded="true"]')) return;
         event.preventDefault();
         setMobileOpen(false);
         return;
       }
       if (event.key !== 'Tab') return;
 
-      // На телефоне доступны панель и единственная кнопка в шапке.
-      // Остальное содержимое страницы временно inert.
+      // The header stays usable while the mobile drawer is open.
       const sidebarItems =
         sidebarRef.current?.querySelectorAll(
           'button:not(:disabled), a[href], [tabindex="0"]',
         ) ?? [];
-      const items = [toggleRef.current, ...sidebarItems].filter(
+      const headerItems =
+        headerRef.current?.querySelectorAll(
+          'button:not(:disabled), a[href], [tabindex="0"]',
+        ) ?? [];
+      const items = [...headerItems, ...sidebarItems].filter(
         (element) => element && element.getClientRects().length > 0,
       );
       if (!items.length) return;
@@ -126,6 +132,7 @@ export function useSidebar() {
     open: mobile ? mobileOpen : !collapsed,
     toggleRef,
     sidebarRef,
+    headerRef,
     toggle,
     close,
     afterNavigate,

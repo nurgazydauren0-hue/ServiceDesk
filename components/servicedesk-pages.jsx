@@ -49,7 +49,9 @@ import SupportScene from './support-scene';
 import { useLanguage } from './language-provider';
 import { useCurrentDate } from './current-date';
 import { formatDate as date, formatLongDate } from '../lib/date-format.js';
+import { filterTeamUsers } from '../lib/team-filters.js';
 import './dashboard-interactions.css';
+import './team-filters.css';
 
 export const statusLabels = {
   NEW: 'Новая',
@@ -88,6 +90,11 @@ const builtInCategories = new Set([
 const categoryLabel = (name, t) => builtInCategories.has(name) ? t(name) : name;
 
 export async function request(url, options = {}) {
+  function notifyTicketChange() {
+    if (options.method && options.method !== 'GET' && /^\/api\/tickets(?:\/|$)/.test(url)) {
+      window.dispatchEvent(new CustomEvent('servicedesk:ticket-updated'));
+    }
+  }
   let response;
   try {
     response = await fetch(url, {
@@ -102,7 +109,10 @@ export async function request(url, options = {}) {
     if (options.signal?.aborted) throw error;
     throw new Error('Не удалось связаться с сервером. Повторите попытку.');
   }
-  if (response.status === 204) return null;
+  if (response.status === 204) {
+    notifyTicketChange();
+    return null;
+  }
   let data;
   try {
     data = await response.json();
@@ -119,6 +129,7 @@ export async function request(url, options = {}) {
         ? data.error
         : 'Не удалось выполнить действие. Проверьте данные и повторите попытку.',
     );
+  notifyTicketChange();
   return data;
 }
 function useResource(url, version = 0) {
@@ -1457,6 +1468,8 @@ export function TeamPage() {
   const [failure, setFailure] = useState('');
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
+  const [role, setRole] = useState('ALL');
+  const [sort, setSort] = useState('agents');
   async function roleChange(user, role) {
     setBusy(user.id);
     setFailure('');
@@ -1474,10 +1487,7 @@ export function TeamPage() {
       setBusy('');
     }
   }
-  const users =
-    data?.users?.filter((user) =>
-      `${user.name} ${user.email}`.toLowerCase().includes(search.toLowerCase()),
-    ) || [];
+  const users = filterTeamUsers(data?.users, { search, role, sort, locale });
   return (
     <>
       <PageTitle
@@ -1492,21 +1502,51 @@ export function TeamPage() {
         </Message>
       )}
       <section className="panel">
-        <div className="panel-heading">
+        <div className="panel-heading team-panel-heading">
           <h2>
             {t('Сотрудники')}{' '}
             <span className="count-pill">{(data?.users?.length || 0).toLocaleString(locale)}</span>
           </h2>
-          <label className="search-field">
-            <Search size={17} />
-            <input
-              aria-label={t('Поиск сотрудника')}
-              placeholder={t('Имя или email')}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </label>
+          <div className="team-controls">
+            <label className="team-control">
+              <span>{t('Поиск сотрудника')}</span>
+              <span className="search-field">
+                <Search size={17} />
+                <input
+                  aria-label={t('Поиск сотрудника')}
+                  placeholder={t('Имя или email')}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </span>
+            </label>
+            <label className="team-control">
+              <span>{t('Фильтр по роли')}</span>
+              <select value={role} onChange={(event) => setRole(event.target.value)}>
+                <option value="ALL">{t('Все роли')}</option>
+                <option value="AGENT">{t('Только исполнители')}</option>
+                <option value="EMPLOYEE">{t('Только сотрудники')}</option>
+                <option value="ADMIN">{t('Только администраторы')}</option>
+              </select>
+            </label>
+            <label className="team-control">
+              <span>{t('Сортировка сотрудников')}</span>
+              <select value={sort} onChange={(event) => setSort(event.target.value)}>
+                <option value="agents">{t('Исполнители сначала')}</option>
+                <option value="name">{t('По имени')}</option>
+                <option value="workload">{t('По открытым заявкам')}</option>
+              </select>
+            </label>
+          </div>
         </div>
+        {!loading && !error && (
+          <p className="team-filter-summary" aria-live="polite">
+            {t('Показано сотрудников: {shown} из {total}', {
+              shown: users.length.toLocaleString(locale),
+              total: (data?.users?.length || 0).toLocaleString(locale),
+            })}
+          </p>
+        )}
         {loading ? (
           <Loading />
         ) : error ? (
@@ -1571,7 +1611,7 @@ export function TeamPage() {
         ) : (
           <Empty
             title="Сотрудники не найдены"
-            text="Попробуйте другое имя или email."
+            text="Измените роль или поисковый запрос."
             action={false}
           />
         )}

@@ -1,0 +1,75 @@
+.notification-menu { position: relative; flex-shrink: 0; }
+.notification-trigger {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+.notification-trigger:hover,
+.notification-trigger[aria-expanded='true'] { background: var(--accent-soft); color: var(--accent-text); }
+.notification-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.notification-count {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid var(--surface);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  background: #d64152;
+  color: #fff;
+}
+.notification-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 14px);
+  z-index: 60;
+  width: min(380px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 16px 48px #0c1b3229;
+  overflow: hidden;
+}
+.notification-heading { display: flex; align-items: center; justify-content: space-between; padding: 14px 17px; border-bottom: 1px solid var(--line); }
+.notification-heading h2 { font-size: 15px; font-weight: 400; }
+.notification-mark-all { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: var(--accent-text); }
+.notification-mark-all:hover:enabled { background: var(--accent-soft); }
+.notification-mark-all:disabled { opacity: .35; cursor: default; }
+.notification-list { list-style: none; margin: 0; padding: 0; max-height: min(480px, calc(100dvh - 220px)); overflow-y: auto; overscroll-behavior: contain; }
+.notification-list li + li { border-top: 1px solid var(--line); }
+.notification-item { display: flex; align-items: flex-start; gap: 11px; padding: 14px 16px; color: var(--text); text-decoration: none; }
+.notification-item:hover { background: var(--surface-subtle); }
+.notification-item.is-unread { background: var(--accent-soft); }
+.notification-item.is-unread:hover { filter: brightness(.98); }
+.notification-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.notification-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: var(--surface-raised); color: var(--accent-text); }
+.notification-content { min-width: 0; flex: 1; }
+.notification-content strong { display: block; font-size: 12px; font-weight: 400; margin-bottom: 4px; }
+.notification-ticket { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.notification-content time { display: block; font-size: 9px; color: var(--muted); margin-top: 6px; }
+.notification-unread-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--accent); margin-top: 7px; }
+.notification-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 22px; text-align: center; color: var(--muted); font-size: 11px; }
+.notification-empty > strong { font-size: 12px; color: var(--text); font-weight: 400; }
+.notification-empty > p { line-height: 1.7; }
+.notification-error { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; color: var(--muted); font-size: 11px; }
+.notification-error button { border: 0; background: transparent; color: var(--accent-text); text-decoration: underline; }
+.notification-footnote { padding: 11px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; text-align: center; }
+@media (max-width: 820px) {
+  .notification-panel { position: fixed; top: calc(var(--topbar-height, 74px) + 8px); right: 12px; width: min(380px, calc(100vw - 24px)); }
+}
+@media (max-width: 440px) {
+  .notification-trigger { width: 36px; height: 36px; }
+}

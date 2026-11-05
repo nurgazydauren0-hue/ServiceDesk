@@ -3,12 +3,14 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { SidebarToggle, useSidebar } from './sidebar-controls';
 import AnimatedNavIcon from './animated-nav-icon';
 import SignOutDialog from './signout-dialog';
 import { useLanguage } from './language-provider';
 import { useCurrentDate } from './current-date';
+import NotificationBell from './notification-bell';
+import './header-controls.css';
 
 const UserContext = createContext(null);
 export const useCurrentUser = () => useContext(UserContext);
@@ -78,6 +80,13 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
     setConfirmSignOut(false);
     window.requestAnimationFrame(() => avatarTriggerRef.current?.focus());
   }
+  function toggleAccountMenu() {
+    const nextOpen = !menu;
+    setMenu(nextOpen);
+    if (nextOpen) {
+      window.dispatchEvent(new CustomEvent('servicedesk:header-menu', { detail: 'account' }));
+    }
+  }
   useEffect(() => {
     setMenu(false);
   }, [pathname]);
@@ -99,15 +108,23 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
       if (!menuRef.current?.contains(event.target)) setMenu(false);
     }
     function escape(event) {
-      if (event.key === 'Escape') setMenu(false);
+      if (event.key === 'Escape' && menu) {
+        setMenu(false);
+        avatarTriggerRef.current?.focus();
+      }
+    }
+    function otherMenu(event) {
+      if (event.detail !== 'account') setMenu(false);
     }
     document.addEventListener('pointerdown', outside);
     document.addEventListener('keydown', escape);
+    window.addEventListener('servicedesk:header-menu', otherMenu);
     return () => {
       document.removeEventListener('pointerdown', outside);
       document.removeEventListener('keydown', escape);
+      window.removeEventListener('servicedesk:header-menu', otherMenu);
     };
-  }, []);
+  }, [menu]);
   return (
     <UserContext.Provider value={{ ...user, refreshUser: setUser }}>
       <div className={`app-shell ${sidebar.className}`}>
@@ -185,41 +202,46 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
           </div>
         </aside>
         <div className="main-shell">
-          <header className="topbar">
+          <header className="topbar" ref={sidebar.headerRef}>
             <div className="topbar-start">
               <SidebarToggle sidebar={sidebar} />
               <span className="topbar-divider" />
               <span className="topbar-title">{t(title)}</span>
             </div>
-            <div
-              className="topbar-end"
-              inert={sidebar.mobile && sidebar.mobileOpen}
-            >
+            <div className="topbar-end">
               <span className="workspace-online">
                 <i /> {t('Рабочее пространство')}
               </span>
+              <NotificationBell user={user} onNavigate={sidebar.afterNavigate} />
               <div className="avatar-menu" ref={menuRef}>
                 <button
+                  type="button"
                   className="avatar-trigger"
                   ref={avatarTriggerRef}
+                  data-header-menu-trigger
+                  aria-label={t('Меню аккаунта')}
+                  title={`${user.name} · ${t(roleLabels[user.role])}`}
                   aria-expanded={menu}
+                  aria-controls={menu ? 'account-dropdown' : undefined}
                   aria-haspopup="true"
-                  onClick={() => setMenu((value) => !value)}
+                  onClick={toggleAccountMenu}
                 >
-                  <span className="avatar">{initials(user.name)}</span>
-                  <span className="avatar-text">
-                    <strong>{user.name}</strong>
-                    <small>{t(roleLabels[user.role])}</small>
-                  </span>
-                  <ChevronDown size={15} />
+                  <span className="avatar" aria-hidden="true">{initials(user.name)}</span>
                 </button>
                 {menu && (
-                  <div className="profile-dropdown">
+                  <div className="profile-dropdown" id="account-dropdown">
+                    <div className="profile-dropdown-summary">
+                      <span className="avatar" aria-hidden="true">{initials(user.name)}</span>
+                      <div>
+                        <strong>{user.name}</strong>
+                        <small>{t(roleLabels[user.role])}</small>
+                      </div>
+                    </div>
                     <p>{user.email}</p>
-                    <Link href="/profile">
+                    <Link href="/profile" onClick={() => { setMenu(false); sidebar.afterNavigate(); }}>
                       <AnimatedNavIcon kind="profile" size={16} /> {t('Мой профиль')}
                     </Link>
-                    <Link href="/settings">
+                    <Link href="/settings" onClick={() => { setMenu(false); sidebar.afterNavigate(); }}>
                       <AnimatedNavIcon kind="settings" size={16} /> {t('Настройки')}
                     </Link>
                     <button onClick={() => { setMenu(false); setConfirmSignOut(true); }}>
