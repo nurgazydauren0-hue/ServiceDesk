@@ -47,6 +47,8 @@ import { initials, roleLabels, useCurrentUser } from './servicedesk-shell';
 import AnimatedNavIcon from './animated-nav-icon';
 import SupportScene from './support-scene';
 import { useLanguage } from './language-provider';
+import { useCurrentDate } from './current-date';
+import { formatDate as date, formatLongDate } from '../lib/date-format.js';
 import './dashboard-interactions.css';
 
 export const statusLabels = {
@@ -85,16 +87,6 @@ const builtInCategories = new Set([
 
 const categoryLabel = (name, t) => builtInCategories.has(name) ? t(name) : name;
 
-const date = (value, locale, withTime = false) =>
-  value
-    ? new Intl.DateTimeFormat(locale, {
-        day: '2-digit',
-        month: 'short',
-        year: withTime ? 'numeric' : undefined,
-        ...(/^\d{4}-\d{2}-\d{2}$/.test(value) ? { timeZone: 'UTC' } : {}),
-        ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
-      }).format(new Date(value))
-    : '—';
 export async function request(url, options = {}) {
   let response;
   try {
@@ -533,6 +525,7 @@ function TrendChart({ data = [] }) {
 
 export function DashboardPage() {
   const { t, locale } = useLanguage();
+  const today = useCurrentDate();
   const user = useCurrentUser();
   const { data, loading, error, reload } = useResource('/api/dashboard');
   return (
@@ -545,11 +538,7 @@ export function DashboardPage() {
         </div>
         <span className="today-label">
           <CalendarDays size={16} />
-          {new Intl.DateTimeFormat(locale, {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          }).format(new Date())}
+          {formatLongDate(today, locale)}
         </span>
       </div>
       <section className="hero hero--spatial">

@@ -17,17 +17,11 @@ import {
 } from 'lucide-react';
 import { useLanguage } from './language-provider';
 import { initials, roleLabels, useCurrentUser } from './servicedesk-shell';
+import { formatDate } from '../lib/date-format.js';
 import './profile-page.css';
 
 function joinedAt(value, locale) {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
+  return formatDate(value, locale, true);
 }
 
 function ProfileMessage({ children, success = false }) {

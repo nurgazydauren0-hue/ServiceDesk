@@ -8,6 +8,7 @@ import { SidebarToggle, useSidebar } from './sidebar-controls';
 import AnimatedNavIcon from './animated-nav-icon';
 import SignOutDialog from './signout-dialog';
 import { useLanguage } from './language-provider';
+import { useCurrentDate } from './current-date';
 
 const UserContext = createContext(null);
 export const useCurrentUser = () => useContext(UserContext);
@@ -55,6 +56,7 @@ export function Brand({ compact = false }) {
 
 export default function ServiceDeskShell({ user: initialUser, children }) {
   const { t } = useLanguage();
+  const today = useCurrentDate();
   const [user, setUser] = useState(initialUser);
   const [menu, setMenu] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -239,7 +241,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
             className="app-footer"
             inert={sidebar.mobile && sidebar.mobileOpen}
           >
-            <span>© {new Date().getFullYear()} ServiceDesk</span>
+            <span>© {today.slice(0, 4)} ServiceDesk</span>
             <span>
               <span className="footer-dot" /> {t('Ваша команда. Ваш рабочий ритм.')}
             </span>

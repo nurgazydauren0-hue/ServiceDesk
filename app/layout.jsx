@@ -6,6 +6,7 @@ import { LanguageProvider } from '../components/language-provider';
 import { createTranslator } from '../lib/i18n';
 import { getRequestLocale } from '../lib/request-language';
 import localFont from 'next/font/local';
+import Script from 'next/script';
 
 const merriweather = localFont({
   src: './fonts/Merriweather-Regular.ttf',
@@ -33,7 +34,9 @@ export default async function RootLayout({ children }) {
   return (
     <html lang={locale} className={merriweather.variable} data-theme="light" suppressHydrationWarning>
       <head>
-        <script
+        <Script
+          id="servicedesk-theme"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html:
               '(function(){try{var t=localStorage.getItem("servicedesk-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()',

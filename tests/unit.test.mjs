@@ -24,7 +24,8 @@ import {
   assertTicketAccess,
 } from '../lib/policies.js';
 import { hashPassword, verifyPassword } from '../lib/passwords.js';
-import { assertSameOrigin, readJsonBody } from '../lib/api-errors.js';
+import { assertSameOrigin, errorResponse, readJsonBody } from '../lib/api-errors.js';
+import { calendarDate, formatDate, formatLongDate } from '../lib/date-format.js';
 
 const employee = { id: 'employee-1', role: 'EMPLOYEE' };
 const stranger = { id: 'employee-2', role: 'EMPLOYEE' };
@@ -43,6 +44,59 @@ const validTicket = {
   categoryId: 'category-1',
 };
 const isStatus = (status) => (error) => error.status === status;
+
+test('даты KZ/RU/EN имеют стабильные названия месяцев и порядок полей', () => {
+  const value = '2026-11-05T07:08:00.000Z';
+  for (const [locale, short, withTime, long] of [
+    ['kk', '05 қар.', '2026 ж. 05 қар., 12:08', '2026 ж. 5 қараша'],
+    ['ru', '05 нояб.', '05 нояб. 2026 г., 12:08', '5 ноября 2026 г.'],
+    ['en', 'Nov 05', 'Nov 05, 2026, 12:08 PM', 'November 5, 2026'],
+  ]) {
+    assert.equal(formatDate(value, locale), short);
+    assert.equal(formatDate(value, locale, true), withTime);
+    assert.equal(formatLongDate(value, locale), long);
+    assert.equal(formatLongDate(new Date(value), locale), long);
+  }
+  assert.equal(formatDate(value, 'unsupported'), '05 нояб.');
+});
+
+test('временные метки используют Кызылорду, а календарные даты сохраняют свой день', () => {
+  const value = '2026-11-05T19:30:00.000Z';
+  assert.equal(calendarDate(value), '2026-11-06');
+  assert.equal(calendarDate('2026-11-06T00:30:00+05:00'), '2026-11-06');
+  assert.equal(formatDate(value, 'kk', true), '2026 ж. 06 қар., 00:30');
+  assert.equal(formatDate(value, 'en', true), 'Nov 06, 2026, 12:30 AM');
+  assert.equal(calendarDate('2026-11-05'), '2026-11-05');
+  assert.equal(formatDate('2026-11-05', 'ru', true), '05 нояб. 2026 г., 00:00');
+  assert.equal(formatLongDate('2026-11-05', 'kk'), '2026 ж. 5 қараша');
+});
+
+test('форматирование дат не зависит от часового пояса сервера или браузера', () => {
+  const previousTimezone = process.env.TZ;
+  try {
+    for (const timezone of ['UTC', 'America/Los_Angeles', 'Asia/Tokyo']) {
+      process.env.TZ = timezone;
+      assert.equal(calendarDate('2026-12-31T20:05:00Z'), '2027-01-01');
+      assert.equal(formatLongDate('2026-12-31T20:05:00Z', 'en'), 'January 1, 2027');
+      assert.equal(formatDate('2026-11-05', 'kk'), '05 қар.');
+    }
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
+});
+
+test('отсутствующие и неверные даты не подменяются текущим временем', () => {
+  for (const value of [
+    undefined, null, '', false, {}, 'invalid', '2026-02-30',
+    '2026-13-01', '2026-02-30T12:30:00Z', '2026-11-05T12:30:00', new Date(NaN), NaN, Infinity,
+  ]) {
+    assert.equal(calendarDate(value), '');
+    assert.equal(formatDate(value, 'kk'), '—');
+    assert.equal(formatDate(value, 'ru', true), '—');
+    assert.equal(formatLongDate(value, 'en'), '—');
+  }
+});
 
 test('регистрация нормализует email и отклоняет подмену роли / идентификатора', () => {
   const parsed = parseBody(registrationSchema, {
@@ -290,6 +344,30 @@ test('Auth.js передаёт безопасные коды ошибок вхо
         value.startsWith('authjs.session-token='),
       ));
   }
+});
+
+test('таймаут PostgreSQL возвращает 503 без технических подробностей', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const timeout = new Error('Connection terminated due to connection timeout', {
+    cause: new Error('Connection terminated unexpectedly'),
+  });
+  for (const error of [
+    timeout,
+    new Error('timeout exceeded when trying to connect'),
+    Object.assign(new Error('Private database connection details'), { code: 'P1017' }),
+  ]) {
+    const response = errorResponse(error);
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: 'База данных временно недоступна. Проверьте подключение и миграции.',
+    });
+  }
+  // An unrelated failure must still be reported as an application error.
+  const unexpected = errorResponse(new Error('Private application details'));
+  assert.equal(unexpected.status, 500);
+  assert.deepEqual(await unexpected.json(), {
+    error: 'Не удалось выполнить запрос. Попробуйте ещё раз.',
+  });
 });
 
 test('запись отклоняет чужой Origin, даже если передан X-Forwarded-Host', () => {
