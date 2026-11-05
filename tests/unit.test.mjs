@@ -187,13 +187,16 @@ test('профиль не позволяет самостоятельно наз
 test('фильтры и идентификаторы ограничивают разрешённые значения и пагинацию', () => {
   const parsed = parseTicketFilters(
     new URLSearchParams(
-      'q=%20wi-fi%20&status=NEW&priority=HIGH&sort=oldest&page=2&pageSize=5&mine=1',
+      'q=%20wi-fi%20&status=NEW&priority=HIGH&sort=oldest&assigneeRole=AGENT&page=2&pageSize=5&mine=1',
     ),
   );
   assert.equal(parsed.q, 'wi-fi');
   assert.equal(parsed.page, 2);
   assert.equal(parsed.pageSize, 5);
   assert.equal(parsed.mine, '1');
+  assert.equal(parsed.assigneeRole, 'AGENT');
+  assert.equal(parsed.sort, 'oldest');
+  assert.equal(parseTicketFilters().assigneeRole, '');
   for (const query of [
     'status=broken',
     'priority=broken',
@@ -202,6 +205,8 @@ test('фильтры и идентификаторы ограничивают р
     'page=1.5',
     'pageSize=101',
     'mine=yes',
+    'assigneeRole=OWNER',
+    'assigneeRole=AGENT,ADMIN',
   ]) {
     assert.throws(
       () => parseTicketFilters(new URLSearchParams(query)),
