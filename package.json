@@ -12,7 +12,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "test": "node --test tests/unit.test.mjs tests/notifications.test.mjs tests/ticket-query.test.mjs tests/local-workspace.test.mjs tests/ui-preferences.test.mjs tests/ticket-drafts.test.mjs tests/ticket-favorites.test.mjs tests/trend-periods.test.mjs tests/trend-format.test.mjs tests/demo-tickets.test.mjs",
+    "test": "node --test tests/unit.test.mjs tests/notifications.test.mjs tests/ticket-query.test.mjs tests/local-workspace.test.mjs tests/ui-preferences.test.mjs tests/ticket-drafts.test.mjs tests/ticket-favorites.test.mjs tests/trend-periods.test.mjs tests/trend-format.test.mjs tests/demo-tickets.test.mjs tests/session-cookies.test.mjs",
     "test:integration": "node --env-file-if-exists=.env --test tests/integration.test.mjs",
     "db:local:start": "node prisma/local-db.mjs start",
     "db:local:stop": "node prisma/local-db.mjs stop",
