@@ -1,0 +1,50 @@
+.workspace-preferences-settings { margin-top: 20px; }
+.workspace-preferences-fields { min-width: 0; }
+.workspace-preferences-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.workspace-preference-field { display: flex; flex-direction: column; gap: 9px; min-width: 0; color: var(--text); font-size: 12px; }
+.workspace-preference-field select { width: 100%; background: var(--surface); border-color: var(--field-border); }
+.workspace-preference-field small,
+.workspace-motion-choice small,
+.workspace-preferences-privacy { color: var(--muted); font-size: 11px; line-height: 1.7; }
+.workspace-accent-choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0; }
+.workspace-accent-choices legend { margin-bottom: 12px; color: var(--text); font-size: 12px; }
+.workspace-accent-choice { cursor: pointer; }
+.workspace-accent-option { display: flex; align-items: center; gap: 9px; padding: 10px 14px; border: 1px solid var(--field-border); border-radius: 8px; color: var(--text); background: var(--surface); font-size: 11px; }
+.workspace-accent-option i { width: 14px; height: 14px; border-radius: 50%; background: #356be8; }
+.workspace-accent-teal i { background: #0f766e; }
+.workspace-accent-violet i { background: #6d4ac4; }
+.workspace-accent-choice input:checked + .workspace-accent-option { border-color: var(--accent-text); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-text); }
+.workspace-accent-choice input:focus-visible + .workspace-accent-option { outline: 3px solid var(--accent); outline-offset: 3px; }
+.workspace-motion-choice { display: flex; align-items: flex-start; gap: 11px; cursor: pointer; }
+.workspace-motion-choice input { margin-top: 3px; min-height: 18px; width: 18px; height: 18px; padding: 0; accent-color: var(--accent-text); }
+.workspace-motion-choice strong { display: block; color: var(--text); font-size: 12px; font-weight: 400; }
+.workspace-motion-choice small { display: block; margin-top: 4px; }
+.workspace-preferences-status { padding-top: 21px; margin-top: 23px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.7; }
+.workspace-preferences-message { margin-top: 12px; color: var(--accent-text); font-size: 11px; }
+.workspace-preferences-message.is-error { color: #c14f5a; }
+.workspace-preferences-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.workspace-preferences-privacy { margin-top: 13px; }
+
+/* No selectors match until the user opts into a non-default preference. */
+html[data-workspace-density='compact'] .main-content table td { padding-top: 9px; padding-bottom: 9px; }
+html[data-workspace-density='compact'] .main-content table th { padding-top: 9px; padding-bottom: 9px; }
+html[data-workspace-text-size='large'] .main-content :is(table td, .ticket-title, .team-user strong, .description-text, .comment p, .field, .field input, .field textarea, .field select, .ticket-properties dd) { font-size: 14px; }
+html[data-workspace-text-size='large'] .main-content :is(table th, .date-cell, .page-heading > div > p:last-child, .comment-meta strong, .comment-form textarea, .workspace-preference-field, .workspace-motion-choice strong) { font-size: 13px; }
+html[data-workspace-text-size='large'] .main-content :is(.ticket-id, .team-user > div > span, .comment-meta time, .field small) { font-size: 12px; }
+
+html[data-workspace-accent='teal'] { --accent: #0f766e; --accent-hover: #115e59; --accent-soft: #e8f6f3; --accent-text: #0f675f; --workspace-button: #0f766e; }
+html[data-workspace-accent='violet'] { --accent: #6d4ac4; --accent-hover: #5938ab; --accent-soft: #f0eafe; --accent-text: #6945b8; --workspace-button: #6d4ac4; }
+html[data-theme='dark'][data-workspace-accent='teal'] { --accent: #64d8c1; --accent-hover: #126e66; --accent-soft: #173c38; --accent-text: #a8ecde; }
+html[data-theme='dark'][data-workspace-accent='violet'] { --accent: #c1a6ff; --accent-hover: #7b5ad0; --accent-soft: #30264b; --accent-text: #d7c5ff; }
+html[data-workspace-accent] .app-shell .button.primary { background: var(--workspace-button); color: #fff; }
+html[data-workspace-accent] .app-shell .button.primary:hover { background: var(--accent-hover); }
+html[data-workspace-motion='reduced'] { scroll-behavior: auto !important; }
+html[data-workspace-motion='reduced'] *,
+html[data-workspace-motion='reduced'] *::before,
+html[data-workspace-motion='reduced'] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+
+@media (max-width: 600px) {
+  .workspace-preferences-grid { grid-template-columns: 1fr; gap: 19px; }
+  .workspace-preferences-actions { flex-direction: column; align-items: stretch; }
+  .workspace-preferences-actions .button { justify-content: center; }
+}

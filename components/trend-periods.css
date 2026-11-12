@@ -1,0 +1,11 @@
+.trend-period-heading { align-items: flex-start; gap: 16px; }
+.trend-period-select { flex-shrink: 0; min-height: 32px; width: auto; max-width: 100%; padding: 7px 25px 7px 10px; color: var(--muted); background-color: var(--surface); border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 10px; cursor: pointer; }
+.trend-period-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.trend-chart-state { min-height: 220px; display: grid; place-items: center; }
+.trend-chart-state .loading-state { min-height: 0; padding: 25px 0; }
+.ticket-trend-panel .trend-key { padding-bottom: 0; }
+.trend-period-summary { margin-top: 14px; padding: 0 22px 18px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 7px 15px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+@media (max-width: 600px) {
+  .trend-period-heading { flex-wrap: wrap; }
+  .trend-period-select { font-size: 11px; }
+}

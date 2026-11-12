@@ -3,6 +3,7 @@
 import { Check, Languages, Moon, Palette, Sun } from 'lucide-react';
 import { LanguageSwitcher, useLanguage } from './language-provider';
 import { useTheme } from './theme-provider';
+import { WorkspacePreferencesSettings } from './workspace-preferences';
 
 const themes = [
   { value: 'light', label: 'Светлая', description: 'Чистый светлый фон и мягкие оттенки.', Icon: Sun },
@@ -85,6 +86,7 @@ export default function SettingsPage() {
         </fieldset>
         <p className="theme-settings-note">{t('Тема сохраняется автоматически в этом браузере.')}</p>
       </section>
+      <WorkspacePreferencesSettings />
     </div>
   );
 }

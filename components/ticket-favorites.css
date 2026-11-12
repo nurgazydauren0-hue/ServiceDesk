@@ -1,0 +1,68 @@
+.ticket-title-with-favorite {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ticket-title-with-favorite > .ticket-title { align-self: center; }
+.ticket-title-with-favorite + .ticket-category { margin-left: 87px; }
+
+.ticket-favorite-control {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 3px;
+}
+
+.ticket-favorite-button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.ticket-favorite-button:hover:enabled,
+.ticket-favorite-button.is-saved {
+  color: #a96908;
+  background: #fff4d8;
+}
+
+.ticket-favorite-button:disabled { cursor: default; opacity: .45; }
+.ticket-favorite-button:focus-visible,
+.ticket-favorites-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ticket-favorite-button.ticket-favorite-detail { width: 40px; height: 40px; border-color: var(--line); background: var(--surface); }
+.ticket-favorite-button.ticket-favorite-detail.is-saved { background: #fff4d8; }
+.ticket-favorite-error { display: grid; place-items: center; color: #b25c1a; }
+
+.ticket-favorites-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 39px;
+  padding: 8px 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ticket-favorites-toggle:hover:enabled,
+.ticket-favorites-toggle.is-active { color: var(--accent-text); border-color: var(--accent); background: var(--accent-soft); }
+.ticket-favorites-toggle:disabled { cursor: default; opacity: .5; }
+.ticket-favorites-count { min-width: 18px; padding: 1px 5px; border-radius: 5px; background: var(--surface-subtle); color: var(--text); font-size: 10px; }
+html[data-theme='dark'] .ticket-favorite-button:hover:enabled,
+html[data-theme='dark'] .ticket-favorite-button.is-saved { color: #f3ca72; background: #493b22; }
+html[data-theme='dark'] .ticket-favorite-error { color: #f2bb7b; }
+
+@media (max-width: 440px) {
+  .ticket-favorites-toggle { min-height: 36px; padding: 7px 10px; }
+}

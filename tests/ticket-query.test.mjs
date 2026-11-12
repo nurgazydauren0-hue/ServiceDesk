@@ -7,6 +7,20 @@ const agent = { id: 'agent-1', role: 'AGENT' };
 const admin = { id: 'admin-1', role: 'ADMIN' };
 const query = (user, values = {}) => buildTicketQuery(user, new URLSearchParams(values));
 
+test('избранные ID ограничивают доступную область до подсчёта и пагинации', () => {
+  const result = query(agent, { favoriteIds: '42,43,42', page: '2', pageSize: '1' });
+  assert.deepEqual(result.findMany.where.AND[0], {
+    OR: [{ assignedToId: agent.id }, { createdById: agent.id }],
+  });
+  assert.deepEqual(result.findMany.where.AND.at(-1), { id: { in: [42, 43] } });
+  assert.equal(result.count.where, result.findMany.where);
+  assert.equal(result.findMany.skip, 1);
+  assert.deepEqual(query(admin, { favoriteIds: '' }).findMany.where.AND.at(-1), { id: { in: [] } });
+  assert.deepEqual(query(admin).findMany.where.AND, [{}]);
+  for (const value of ['0', '-1', '1,foo', '2147483648', Array.from({ length: 101 }, (_, i) => i + 1).join(',')])
+    assert.throws(() => query(admin, { favoriteIds: value }), (error) => error.status === 400);
+});
+
 test('сортировки столбцов работают на сервере до пагинации и имеют стабильный ID', () => {
   const fields = {
     title: 'title', category: 'category', priority: 'priority',

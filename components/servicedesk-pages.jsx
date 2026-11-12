@@ -48,10 +48,15 @@ import AnimatedNavIcon from './animated-nav-icon';
 import SupportScene from './support-scene';
 import { useLanguage } from './language-provider';
 import { useCurrentDate } from './current-date';
-import { formatDate as date, formatLongDate } from '../lib/date-format.js';
+import { formatDate as date, formatLongDate, formatTrendDate } from '../lib/date-format.js';
 import TicketColumnHeader from './ticket-column-header';
+import { FavoriteButton, FavoritesToggle, useTicketFavorites } from './ticket-favorites';
+import DraftStatus from './draft-status';
+import { usePersistentLocalState } from './use-persistent-local-state';
+import { EMPTY_TICKET_DRAFT, hasTicketDraft, isCommentDraft, isTicketDraft } from '../lib/ticket-drafts.js';
 import './dashboard-interactions.css';
 import './stat-card-links.css';
+import './trend-periods.css';
 
 export const statusLabels = {
   NEW: 'Новая',
@@ -354,12 +359,15 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
           {tickets.map((ticket) => (
             <tr key={ticket.id}>
               <td>
-                <Link className="ticket-title" href={`/tickets/${ticket.id}`}>
-                  <span className="ticket-id">
-                    SD-{String(ticket.id).padStart(4, '0')}
-                  </span>
-                  <span>{ticket.title}</span>
-                </Link>
+                <div className="ticket-title-with-favorite">
+                  <FavoriteButton ticketId={ticket.id} />
+                  <Link className="ticket-title" href={`/tickets/${ticket.id}`}>
+                    <span className="ticket-id">
+                      SD-{String(ticket.id).padStart(4, '0')}
+                    </span>
+                    <span>{ticket.title}</span>
+                  </Link>
+                </div>
                 {(compact || support) && (
                   <span className="ticket-category">
                     {categoryLabel(ticket.category?.name, t)}
@@ -545,7 +553,7 @@ function StatusChart({ statuses = [], total = 0 }) {
     </div>
   );
 }
-function TrendChart({ data = [] }) {
+function TrendChart({ data = [], granularity = 'day' }) {
   const { t, locale } = useLanguage();
   return (
     <div className="trend-chart">
@@ -567,7 +575,8 @@ function TrendChart({ data = [] }) {
           />
           <XAxis
             dataKey="date"
-            tickFormatter={(value) => date(value, locale)}
+            tickFormatter={(value) => formatTrendDate(value, locale, granularity)}
+            interval="preserveStartEnd"
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 11, fill: '#8a95a5' }}
@@ -581,7 +590,7 @@ function TrendChart({ data = [] }) {
             tick={{ fontSize: 11, fill: '#8a95a5' }}
           />
           <Tooltip
-            labelFormatter={(value) => date(value, locale)}
+            labelFormatter={(value) => formatTrendDate(value, locale, granularity, true)}
             formatter={(value) => value.toLocaleString(locale)}
           />
           <Area
@@ -605,6 +614,88 @@ function TrendChart({ data = [] }) {
         </AreaChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+const trendPeriods = [
+  ['day', 'Последний 1 день'],
+  ['14d', 'Последние 14 дней'],
+  ['month', 'Последний 1 месяц'],
+  ['year', 'Последний 1 год'],
+];
+const isTrendPeriod = (value) => trendPeriods.some(([period]) => period === value);
+
+function TicketTrendPanel({ initialData, endpoint, title }) {
+  const { t, locale } = useLanguage();
+  const user = useCurrentUser();
+  const { value: period, setValue: setPeriod, ready } = usePersistentLocalState({
+    userId: user.id,
+    name: `trend-period:${endpoint}`,
+    defaultValue: '14d',
+    validate: isTrendPeriod,
+  });
+  const [result, setResult] = useState({ period: '', data: null, error: '' });
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    if (!ready || period === '14d') return;
+    const controller = new AbortController();
+    setResult({ period, data: null, error: '' });
+    request(`${endpoint}?period=${period}`, { signal: controller.signal })
+      .then((data) => {
+        if (!controller.signal.aborted) setResult({ period, data, error: '' });
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setResult({ period, data: null, error: error.message });
+      });
+    return () => controller.abort();
+  }, [endpoint, period, ready, revision, initialData]);
+
+  const current = period === '14d' ? initialData : result.period === period ? result.data : null;
+  const error = result.period === period && period !== '14d' ? result.error : '';
+  const loading = !current && !error;
+  const totals = (current?.trend || []).reduce((sum, point) => ({
+    created: sum.created + point.created,
+    resolved: sum.resolved + point.resolved,
+  }), { created: 0, resolved: 0 });
+  return (
+    <section className="panel ticket-trend-panel" aria-busy={loading}>
+      <div className="panel-heading trend-period-heading">
+        <div>
+          <h2>{t(title)}</h2>
+          <p>{t('Созданные и решённые заявки')}</p>
+        </div>
+        <select
+          className="period-label trend-period-select"
+          aria-label={t('Период динамики обращений')}
+          value={period}
+          disabled={!ready}
+          onChange={(event) => setPeriod(event.target.value)}
+        >
+          {trendPeriods.map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
+        </select>
+      </div>
+      {loading ? (
+        <div className="trend-chart-state"><Loading /></div>
+      ) : error ? (
+        <div className="trend-chart-state"><ResourceError error={error} retry={() => setRevision((value) => value + 1)} /></div>
+      ) : (
+        <>
+          <TrendChart data={current.trend} granularity={current.trendGranularity || 'day'} />
+          <div className="trend-key">
+            <span><i /> {t('Создано')}</span>
+            <span><i /> {t('Решено')}</span>
+          </div>
+          <div className="trend-period-summary">
+            <span>{t('За период: создано {created}, решено {resolved}', {
+              created: totals.created.toLocaleString(locale),
+              resolved: totals.resolved.toLocaleString(locale),
+            })}</span>
+            <span>{t('Время: Кызылорда (UTC+5)')}</span>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -666,24 +757,7 @@ export function DashboardPage() {
               </div>
               <StatusChart statuses={data.statuses} total={data.counts.total} />
             </section>
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>{t('Динамика обращений')}</h2>
-                  <p>{t('Созданные и решённые заявки')}</p>
-                </div>
-                <span className="period-label">{t('Последние 14 дней')}</span>
-              </div>
-              <TrendChart data={data.trend} />
-              <div className="trend-key">
-                <span>
-                  <i /> {t('Создано')}
-                </span>
-                <span>
-                  <i /> {t('Решено')}
-                </span>
-              </div>
-            </section>
+            <TicketTrendPanel initialData={data} endpoint="/api/dashboard" title="Динамика обращений" />
           </div>
           <section className="panel recent-panel">
             <div className="panel-heading">
@@ -728,6 +802,7 @@ export function SupportPage() {
 export function TicketsPage({ mine = false, support = false }) {
   const { t, locale } = useLanguage();
   const user = useCurrentUser();
+  const favorites = useTicketFavorites(user.id);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const urlQuery = searchParams.toString();
@@ -737,9 +812,11 @@ export function TicketsPage({ mine = false, support = false }) {
   const assigneeRole = searchParams.get('assigneeRole') || '';
   const categoryId = searchParams.get('categoryId') || '';
   const statusGroup = searchParams.get('statusGroup') || '';
+  const onlyFavorites = searchParams.get('favorites') === '1';
   const sort = searchParams.get('sort') || (support ? 'oldest' : 'newest');
   const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
   const [search, setSearch] = useState(query);
+  const previousFavoriteIds = useRef(null);
 
   function updateFilters(changes, resetPage = true) {
     // Merge with the latest URL even when another control changed this frame.
@@ -754,6 +831,14 @@ export function TicketsPage({ mine = false, support = false }) {
     const value = next.toString();
     window.history.replaceState(null, '', `${pathname}${value ? `?${value}` : ''}`);
   }
+
+  const favoriteSignature = `${user.id}:${favorites.ids.join(',')}`;
+  useEffect(() => {
+    if (!favorites.ready) return;
+    const changed = previousFavoriteIds.current !== null && previousFavoriteIds.current !== favoriteSignature;
+    previousFavoriteIds.current = favoriteSignature;
+    if (changed && onlyFavorites && page > 1) updateFilters({ page: 1 }, false);
+  }, [favoriteSignature, favorites.ready, onlyFavorites, page, pathname]);
 
   useEffect(() => { setSearch(query); }, [query]);
   useEffect(() => {
@@ -773,12 +858,13 @@ export function TicketsPage({ mine = false, support = false }) {
     sort,
     page: String(page),
     ...(mine || searchParams.get('mine') === '1' ? { mine: '1' } : {}),
+    ...(onlyFavorites ? { favoriteIds: favorites.ids.join(',') } : {}),
   });
   const { data, loading, error, reload } = useResource(
     `/api/tickets?${params}`,
   );
   const { data: categoryData } = useResource('/api/categories');
-  const filtered = !!(query || (!support && status) || priority || assigneeRole || categoryId || statusGroup);
+  const filtered = !!(query || (!support && status) || priority || assigneeRole || categoryId || statusGroup || onlyFavorites);
   function reset() {
     setSearch('');
     window.history.replaceState(null, '', pathname);
@@ -851,6 +937,12 @@ export function TicketsPage({ mine = false, support = false }) {
               </button>
             )}
           </label>
+          <FavoritesToggle
+            active={onlyFavorites}
+            count={favorites.count}
+            ready={favorites.ready}
+            onToggle={(active) => updateFilters({ favorites: active ? '1' : '' })}
+          />
         </div>
         {(support || filtered) && (
           <div className="filter-summary">
@@ -1007,25 +1099,33 @@ function TicketFields({ values, onChange, categories }) {
 }
 export function NewTicketPage() {
   const { t } = useLanguage();
+  const user = useCurrentUser();
   const router = useRouter();
   const { data, loading, error, reload } = useResource('/api/categories');
-  const [values, setValues] = useState({
-    title: '',
-    description: '',
-    categoryId: '',
-    priority: 'MEDIUM',
+  const {
+    value: values, setValue: setValues, ready: draftReady,
+    storageError: draftStorageError, updatedAt: draftUpdatedAt, clear: clearDraft,
+    clearIfUnchanged: clearSubmittedDraft,
+  } = usePersistentLocalState({
+    userId: user.id,
+    name: 'draft:new-ticket',
+    defaultValue: EMPTY_TICKET_DRAFT,
+    validate: isTicketDraft,
   });
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState('');
   async function submit(event) {
     event.preventDefault();
+    if (!draftReady || busy) return;
+    const submittedValues = { ...values };
     setBusy(true);
     setFailure('');
     try {
       const result = await request('/api/tickets', {
         method: 'POST',
-        body: JSON.stringify(values),
+        body: JSON.stringify(submittedValues),
       });
+      clearSubmittedDraft(submittedValues);
       window.dispatchEvent(new CustomEvent('servicedesk:ticket-created'));
       router.push(`/tickets/${result.ticket.id}?created=1`);
       router.refresh();
@@ -1061,7 +1161,7 @@ export function NewTicketPage() {
             <ResourceError error={error} retry={reload} />
           ) : (
             <form onSubmit={submit}>
-              <fieldset disabled={busy}>
+              <fieldset disabled={busy || !draftReady}>
                 <TicketFields
                   values={values}
                   categories={data.categories}
@@ -1073,6 +1173,14 @@ export function NewTicketPage() {
                   }
                 />
               </fieldset>
+              <DraftStatus
+                ready={draftReady}
+                storageError={draftStorageError}
+                updatedAt={draftUpdatedAt}
+                hasContent={hasTicketDraft(values)}
+                onClear={clearDraft}
+                disabled={busy}
+              />
               <Message>{failure}</Message>
               {!data.categories.length && (
                 <Message>
@@ -1085,7 +1193,7 @@ export function NewTicketPage() {
                 </Link>
                 <button
                   className="button primary"
-                  disabled={busy || !data.categories.length}
+                  disabled={busy || !draftReady || !data.categories.length}
                 >
                   {busy ? (
                     <LoaderCircle className="spin" size={17} />
@@ -1186,7 +1294,16 @@ export function TicketDetailPage({ id, created = false }) {
   const team = useResource(user.role === 'ADMIN' ? '/api/team' : '/api/me');
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState(null);
-  const [comment, setComment] = useState('');
+  const {
+    value: comment, setValue: setComment, ready: commentReady,
+    storageError: commentStorageError, updatedAt: commentUpdatedAt, clear: clearCommentDraft,
+    clearIfUnchanged: clearSubmittedComment,
+  } = usePersistentLocalState({
+    userId: user.id,
+    name: `draft:comment:${id}`,
+    defaultValue: '',
+    validate: isCommentDraft,
+  });
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState('');
   const [success, setSuccess] = useState(
@@ -1226,14 +1343,16 @@ export function TicketDetailPage({ id, created = false }) {
   }
   async function addComment(event) {
     event.preventDefault();
+    if (!commentReady || busy || !comment.trim()) return;
+    const submittedComment = comment;
     setBusy(true);
     setFailure('');
     try {
       await request(`/api/tickets/${id}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ content: comment }),
+        body: JSON.stringify({ content: submittedComment }),
       });
-      setComment('');
+      clearSubmittedComment(submittedComment);
       setSuccess('Комментарий добавлен.');
       reload();
     } catch (error) {
@@ -1274,6 +1393,7 @@ export function TicketDetailPage({ id, created = false }) {
           </p>
         </div>
         <div className="heading-actions">
+          <FavoriteButton ticketId={ticket.id} userId={user.id} className="ticket-favorite-detail" />
           {editable && (
             <button
               className="button secondary"
@@ -1393,17 +1513,26 @@ export function TicketDetailPage({ id, created = false }) {
                 rows={3}
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
-                disabled={busy}
+                disabled={busy || !commentReady}
               />
               <div>
                 <span>{t('Комментарии видны участникам заявки')}</span>
                 <button
                   className="button primary small"
-                  disabled={busy || !comment.trim()}
+                  disabled={busy || !commentReady || !comment.trim()}
                 >
                   <Send size={15} /> {t('Отправить')}
                 </button>
               </div>
+              <DraftStatus
+                key={`${user.id}:comment:${id}`}
+                ready={commentReady}
+                storageError={commentStorageError}
+                updatedAt={commentUpdatedAt}
+                hasContent={comment !== ''}
+                onClear={clearCommentDraft}
+                disabled={busy}
+              />
             </form>
           </section>
         </div>
@@ -1737,24 +1866,7 @@ export function ReportsPage() {
               </div>
             </section>
           </div>
-          <section className="panel">
-            <div className="panel-heading">
-              <div>
-                <h2>{t('Динамика работы поддержки')}</h2>
-                <p>{t('Созданные и решённые заявки за последние 14 дней')}</p>
-              </div>
-              <span className="period-label">{t('14 дней')}</span>
-            </div>
-            <TrendChart data={data.trend} />
-            <div className="trend-key">
-              <span>
-                <i /> {t('Создано')}
-              </span>
-              <span>
-                <i /> {t('Решено')}
-              </span>
-            </div>
-          </section>
+          <TicketTrendPanel initialData={data} endpoint="/api/reports" title="Динамика работы поддержки" />
         </>
       )}
     </>
