@@ -5,7 +5,21 @@
 .trend-chart-state .loading-state { min-height: 0; padding: 25px 0; }
 .ticket-trend-panel .trend-key { padding-bottom: 0; }
 .trend-period-summary { margin-top: 14px; padding: 0 22px 18px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 7px 15px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.trend-range-form { padding: 0 22px 15px; }
+.trend-range-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.trend-range-fields label { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 7px; color: var(--text); font-size: 11px; }
+.trend-range-fields input { width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--field-border); border-radius: 6px; color-scheme: light; }
+html[data-theme='dark'] .trend-range-fields input { color-scheme: dark; }
+.trend-range-fields input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.trend-range-fields input[aria-invalid='true'] { border-color: #c14f5a; }
+.trend-range-fields .button { min-height: 38px; }
+.trend-range-hint, .trend-range-caption, .trend-range-placeholder { color: var(--muted); font-size: 10px; line-height: 1.7; }
+.trend-range-hint { margin-top: 9px; }
+.trend-range-caption { padding: 0 22px 10px; }
+.trend-range-error { margin-top: 8px; color: #c14f5a; font-size: 11px; }
+.trend-range-placeholder { padding: 20px 22px; text-align: center; }
 @media (max-width: 600px) {
   .trend-period-heading { flex-wrap: wrap; }
   .trend-period-select { font-size: 11px; }
+  .trend-range-fields .button { flex: 1 1 100%; justify-content: center; }
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTrend, createTrendWindow, trendBucketDate } from '../lib/trend-periods.js';
+import { buildTrend, createTrendWindow, getTrendRangeError, isTrendCalendarDate, trendBucketDate, trendCalendarDate } from '../lib/trend-periods.js';
 import { parseTrendFilters } from '../lib/validation.js';
 
 test('период по умолчанию — 14 календарных дней Кызылорды, включая текущий', () => {
@@ -104,4 +104,90 @@ test('границы не зависят от часового пояса опе
     if (before === undefined) delete process.env.TZ;
     else process.env.TZ = before;
   }
+});
+
+test('свой диапазон включает обе выбранные даты целиком по времени Кызылорды', () => {
+  const window = createTrendWindow('custom', '2026-11-12T10:32:00.000Z', {
+    startDate: '2026-11-01', endDate: '2026-11-03',
+  });
+  assert.equal(window.period, 'custom');
+  assert.equal(window.startDate, '2026-11-01');
+  assert.equal(window.endDate, '2026-11-03');
+  assert.equal(window.start.toISOString(), '2026-10-31T19:00:00.000Z');
+  assert.equal(window.end.toISOString(), '2026-11-03T19:00:00.000Z');
+  assert.equal(window.granularity, 'day');
+  assert.equal(window.buckets.length, 3);
+  assert.equal(window.buckets.at(-1), '2026-11-02T19:00:00.000Z');
+  assert.equal(trendBucketDate(window, '2026-10-31T18:59:59.999Z'), null);
+  assert.equal(trendBucketDate(window, window.start), window.buckets[0]);
+  assert.equal(trendBucketDate(window, '2026-11-03T18:59:59.999Z'), window.buckets.at(-1));
+  assert.equal(trendBucketDate(window, window.end), null);
+});
+
+test('один выбранный день не добавляет следующий, а сегодняшний ограничивается текущим моментом', () => {
+  const past = createTrendWindow('custom', '2026-11-12T10:32:00.000Z', {
+    startDate: '2026-11-01', endDate: '2026-11-01',
+  });
+  assert.equal(past.buckets.length, 1);
+  assert.equal(past.end - past.start, 86_400_000);
+  const today = createTrendWindow('custom', '2026-11-12T10:32:00.000Z', {
+    startDate: '2026-11-01', endDate: '2026-11-12',
+  });
+  assert.equal(today.buckets.length, 12);
+  assert.equal(today.end.toISOString(), '2026-11-12T10:32:00.000Z');
+  assert.equal(trendBucketDate(today, '2026-11-12T10:32:01.000Z'), null);
+  const midnight = createTrendWindow('custom', '2026-11-11T19:00:00.000Z', {
+    startDate: '2026-11-12', endDate: '2026-11-12',
+  });
+  assert.equal(midnight.buckets.length, 1);
+  assert.equal(midnight.start.getTime(), midnight.end.getTime());
+  assert.equal(buildTrend(midnight)[0].created, 0);
+});
+
+test('свой диапазон переходит на месяцы после 90 дат и остаётся ограниченным десятью годами', () => {
+  const now = '2026-11-12T10:32:00.000Z';
+  const ninety = createTrendWindow('custom', now, { startDate: '2026-03-01', endDate: '2026-05-29' });
+  assert.equal(ninety.granularity, 'day');
+  assert.equal(ninety.buckets.length, 90);
+  const longer = createTrendWindow('custom', now, { startDate: '2026-03-01', endDate: '2026-05-30' });
+  assert.equal(longer.granularity, 'month');
+  assert.equal(longer.buckets.length, 3);
+  assert.equal(longer.buckets[0], '2026-02-28T19:00:00.000Z');
+  assert.equal(longer.buckets.at(-1), '2026-04-30T19:00:00.000Z');
+  const maximum = createTrendWindow('custom', now, { startDate: '2016-11-12', endDate: '2026-11-12' });
+  assert.equal(maximum.granularity, 'month');
+  assert.equal(maximum.buckets.length, 121);
+  assert.equal(getTrendRangeError({ startDate: '2016-11-11', endDate: '2026-11-12' }, now), 'Выберите диапазон не длиннее 10 лет.');
+});
+
+test('даты своего диапазона проверяются строго, включая високосные дни и локальное сегодня', () => {
+  for (const value of ['2026-11-12', '2024-02-29', '0001-01-01']) assert.equal(isTrendCalendarDate(value), true);
+  for (const value of ['', '2026-02-29', '2026-02-30', '2026-2-01', '0000-01-01', '12.11.2026', '2026-11-12T00:00:00Z', null, 20261112])
+    assert.equal(isTrendCalendarDate(value), false);
+  assert.equal(trendCalendarDate('2026-11-11T18:59:59.999Z'), '2026-11-11');
+  assert.equal(trendCalendarDate('2026-11-11T19:00:00.000Z'), '2026-11-12');
+  assert.equal(getTrendRangeError({ startDate: '2026-11-12', endDate: '2026-11-12' }, '2026-11-11T19:00:00.000Z'), '');
+  const leap = createTrendWindow('custom', '2024-03-01T10:00:00Z', { startDate: '2024-02-28', endDate: '2024-03-01' });
+  assert.equal(leap.buckets.length, 3);
+  assert.equal(getTrendRangeError({ startDate: '2014-02-28', endDate: '2024-02-29' }, '2024-03-01T00:00:00Z'), '');
+});
+
+test('API требует пару дат только для своего диапазона и отклоняет некорректные параметры', () => {
+  const now = '2026-11-12T10:32:00Z';
+  const query = (suffix) => new URLSearchParams(`period=custom&${suffix}`);
+  assert.deepEqual(parseTrendFilters(query('startDate=2026-11-01&endDate=2026-11-12'), now), {
+    period: 'custom', startDate: '2026-11-01', endDate: '2026-11-12',
+  });
+  for (const params of [
+    query(''), query('startDate=2026-11-01'), query('endDate=2026-11-12'),
+    query('startDate=2026-02-30&endDate=2026-11-12'),
+    query('startDate=2026-11-12&endDate=2026-11-01'),
+    query('startDate=2026-11-01&endDate=2026-11-13'),
+    query('startDate=2016-11-11&endDate=2026-11-12'),
+    query('startDate=2026-11-01&startDate=2026-11-02&endDate=2026-11-12'),
+    query('startDate=2026-11-01&endDate=2026-11-12&endDate=2026-11-11'),
+    query('startDate=2026-11-01&endDate=2026-11-12&extra=1'),
+    new URLSearchParams('period=14d&startDate=2026-11-01&endDate=2026-11-12'),
+    new URLSearchParams('startDate=2026-11-01&endDate=2026-11-12'),
+  ]) assert.throws(() => parseTrendFilters(params, now), (error) => error.status === 400);
 });

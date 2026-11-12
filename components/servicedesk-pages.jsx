@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -49,6 +49,7 @@ import SupportScene from './support-scene';
 import { useLanguage } from './language-provider';
 import { useCurrentDate } from './current-date';
 import { formatDate as date, formatLongDate, formatTrendDate } from '../lib/date-format.js';
+import { getTrendRangeError, isTrendCalendarDate } from '../lib/trend-periods.js';
 import TicketColumnHeader from './ticket-column-header';
 import { FavoriteButton, FavoritesToggle, useTicketFavorites } from './ticket-favorites';
 import DraftStatus from './draft-status';
@@ -598,6 +599,7 @@ function TrendChart({ data = [], granularity = 'day' }) {
             name={t('Создано')}
             type="monotone"
             dataKey="created"
+            dot={data.length === 1 ? { r: 4 } : false}
             stroke="var(--accent)"
             strokeWidth={2.5}
             fill="url(#trend-fill)"
@@ -607,6 +609,7 @@ function TrendChart({ data = [], granularity = 'day' }) {
             name={t('Решено')}
             type="monotone"
             dataKey="resolved"
+            dot={data.length === 1 ? { r: 4 } : false}
             stroke="#8293c7"
             strokeWidth={2}
             fill="transparent"
@@ -622,38 +625,82 @@ const trendPeriods = [
   ['14d', 'Последние 14 дней'],
   ['month', 'Последний 1 месяц'],
   ['year', 'Последний 1 год'],
+  ['custom', 'Свой диапазон'],
 ];
 const isTrendPeriod = (value) => trendPeriods.some(([period]) => period === value);
+const emptyTrendRange = Object.freeze({ startDate: '', endDate: '' });
+const isStoredTrendRange = (value) => value && typeof value === 'object' && !Array.isArray(value)
+  && Object.keys(value).length === 2
+  && ['startDate', 'endDate'].every((key) => value[key] === '' || isTrendCalendarDate(value[key]));
 
 function TicketTrendPanel({ initialData, endpoint, title }) {
   const { t, locale } = useLanguage();
   const user = useCurrentUser();
+  const today = useCurrentDate();
+  const rangeId = useId();
   const { value: period, setValue: setPeriod, ready } = usePersistentLocalState({
     userId: user.id,
     name: `trend-period:${endpoint}`,
     defaultValue: '14d',
     validate: isTrendPeriod,
   });
-  const [result, setResult] = useState({ period: '', data: null, error: '' });
+  const { value: savedRange, setValue: saveRange, ready: rangeReady } = usePersistentLocalState({
+    userId: user.id,
+    name: `trend-range:${endpoint}`,
+    defaultValue: emptyTrendRange,
+    validate: isStoredTrendRange,
+  });
+  const [range, setRange] = useState(emptyTrendRange);
+  const [rangeError, setRangeError] = useState('');
+  const [result, setResult] = useState({ key: '', data: null, error: '' });
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    if (!ready || period === '14d') return;
+    if (!rangeReady) return;
+    setRange({
+      startDate: savedRange.startDate || (today ? `${today.slice(0, 8)}01` : ''),
+      endDate: savedRange.endDate || today || '',
+    });
+    setRangeError('');
+  }, [savedRange.startDate, savedRange.endDate, rangeReady, today]);
+
+  const hasSavedRange = Boolean(savedRange.startDate && savedRange.endDate);
+  const savedRangeError = period === 'custom' && hasSavedRange ? getTrendRangeError(savedRange) : '';
+  const query = new URLSearchParams({ period });
+  if (period === 'custom') {
+    query.set('startDate', savedRange.startDate);
+    query.set('endDate', savedRange.endDate);
+  }
+  const trendUrl = period === '14d' || (period === 'custom' && (!hasSavedRange || savedRangeError))
+    ? '' : `${endpoint}?${query}`;
+
+  useEffect(() => {
+    if (!ready || !rangeReady || !trendUrl) return;
     const controller = new AbortController();
-    setResult({ period, data: null, error: '' });
-    request(`${endpoint}?period=${period}`, { signal: controller.signal })
+    setResult({ key: trendUrl, data: null, error: '' });
+    request(trendUrl, { signal: controller.signal })
       .then((data) => {
-        if (!controller.signal.aborted) setResult({ period, data, error: '' });
+        if (!controller.signal.aborted) setResult({ key: trendUrl, data, error: '' });
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setResult({ period, data: null, error: error.message });
+        if (!controller.signal.aborted) setResult({ key: trendUrl, data: null, error: error.message });
       });
     return () => controller.abort();
-  }, [endpoint, period, ready, revision, initialData]);
+  }, [trendUrl, ready, rangeReady, revision, initialData]);
 
-  const current = period === '14d' ? initialData : result.period === period ? result.data : null;
-  const error = result.period === period && period !== '14d' ? result.error : '';
-  const loading = !current && !error;
+  function applyRange(event) {
+    event.preventDefault();
+    const error = getTrendRangeError(range);
+    setRangeError(error);
+    if (error) return;
+    saveRange({ ...range });
+    setRevision((value) => value + 1);
+  }
+
+  const current = period === '14d' ? initialData : result.key === trendUrl ? result.data : null;
+  const error = savedRangeError || (result.key === trendUrl && period !== '14d' ? result.error : '');
+  const waitingForRange = period === 'custom' && !hasSavedRange;
+  const loading = !waitingForRange && !current && !error;
   const totals = (current?.trend || []).reduce((sum, point) => ({
     created: sum.created + point.created,
     resolved: sum.resolved + point.resolved,
@@ -669,13 +716,50 @@ function TicketTrendPanel({ initialData, endpoint, title }) {
           className="period-label trend-period-select"
           aria-label={t('Период динамики обращений')}
           value={period}
-          disabled={!ready}
-          onChange={(event) => setPeriod(event.target.value)}
+          disabled={!ready || !rangeReady}
+          onChange={(event) => { setRangeError(''); setPeriod(event.target.value); }}
         >
           {trendPeriods.map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
         </select>
       </div>
-      {loading ? (
+      {period === 'custom' && (
+        <form className="trend-range-form" onSubmit={applyRange} noValidate>
+          <div className="trend-range-fields">
+            <label htmlFor={`${rangeId}-start`}>
+              <span>{t('Дата начала')}</span>
+              <input
+                id={`${rangeId}-start`} type="date" required value={range.startDate}
+                max={today || undefined} disabled={!rangeReady}
+                aria-invalid={Boolean(rangeError)}
+                aria-describedby={`${rangeId}-hint${rangeError ? ` ${rangeId}-error` : ''}`}
+                onChange={(event) => { setRange((old) => ({ ...old, startDate: event.target.value })); setRangeError(''); }}
+              />
+            </label>
+            <label htmlFor={`${rangeId}-end`}>
+              <span>{t('Дата окончания')}</span>
+              <input
+                id={`${rangeId}-end`} type="date" required value={range.endDate}
+                min={range.startDate || undefined} max={today || undefined} disabled={!rangeReady}
+                aria-invalid={Boolean(rangeError)}
+                aria-describedby={`${rangeId}-hint${rangeError ? ` ${rangeId}-error` : ''}`}
+                onChange={(event) => { setRange((old) => ({ ...old, endDate: event.target.value })); setRangeError(''); }}
+              />
+            </label>
+            <button type="submit" className="button secondary small" disabled={!rangeReady || loading}>{t('Применить')}</button>
+          </div>
+          <p className="trend-range-hint" id={`${rangeId}-hint`}>{t('Обе даты входят в выбранный период.')}</p>
+          {rangeError && <p className="trend-range-error" id={`${rangeId}-error`} role="alert">{t(rangeError)}</p>}
+        </form>
+      )}
+      {period === 'custom' && current && (
+        <p className="trend-range-caption">{t('Показан период: {start} — {end}', {
+          start: formatLongDate(current.trendStartDate, locale),
+          end: formatLongDate(current.trendEndDate, locale),
+        })}</p>
+      )}
+      {waitingForRange ? (
+        <div className="trend-chart-state trend-range-placeholder"><p>{t('Укажите даты и нажмите «Применить».')}</p></div>
+      ) : loading ? (
         <div className="trend-chart-state"><Loading /></div>
       ) : error ? (
         <div className="trend-chart-state"><ResourceError error={error} retry={() => setRevision((value) => value + 1)} /></div>
