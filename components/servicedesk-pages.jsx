@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Area,
   AreaChart,
@@ -49,7 +49,9 @@ import SupportScene from './support-scene';
 import { useLanguage } from './language-provider';
 import { useCurrentDate } from './current-date';
 import { formatDate as date, formatLongDate } from '../lib/date-format.js';
+import TicketColumnHeader from './ticket-column-header';
 import './dashboard-interactions.css';
+import './stat-card-links.css';
 
 export const statusLabels = {
   NEW: 'Новая',
@@ -260,19 +262,89 @@ function UserName({ user }) {
     <span className="muted">{t('Не назначен')}</span>
   );
 }
-function TicketTable({ tickets, compact = false, support = false }) {
+function TicketTable({ tickets, compact = false, support = false, controls }) {
   const { t, locale } = useLanguage();
+  function heading(label, sortAsc, sortDesc, children, filterActive = false) {
+    if (!controls) return <th>{t(label)}</th>;
+    return (
+      <TicketColumnHeader
+        label={label}
+        sortAsc={sortAsc}
+        sortDesc={sortDesc}
+        sort={controls.sort}
+        onSort={(sort) => controls.update({ sort })}
+        filterActive={filterActive}
+      >
+        {children}
+      </TicketColumnHeader>
+    );
+  }
   return (
     <div className="table-scroll">
       <table className="ticket-table">
         <thead>
           <tr>
-            <th>{t('Заявка')}</th>
-            {!compact && <th>{support ? t('Автор обращения') : t('Категория')}</th>}
-            <th>{t('Приоритет')}</th>
-            <th>{t('Статус')}</th>
-            <th>{t('Исполнитель')}</th>
-            <th>{t('Создана')}</th>
+            {heading('Заявка', 'title_asc', 'title_desc')}
+            {!compact && (support
+              ? heading('Автор обращения', 'author_asc', 'author_desc')
+              : heading('Категория', 'category_asc', 'category_desc', controls && (
+                <label className="ticket-column-filter-field">
+                  <span>{t('Категория')}</span>
+                  <select
+                    aria-label={t('Категория заявки')}
+                    value={controls.categoryId}
+                    onChange={(event) => controls.update({ categoryId: event.target.value })}
+                  >
+                    <option value="">{t('Все категории')}</option>
+                    {controls.categories.map((category) => (
+                      <option key={category.id} value={category.id}>{categoryLabel(category.name, t)}</option>
+                    ))}
+                  </select>
+                </label>
+              ), !!controls?.categoryId))}
+            {heading('Приоритет', 'priority_asc', 'priority_desc', controls && (
+              <label className="ticket-column-filter-field">
+                <span>{t('Приоритет')}</span>
+                <select
+                  aria-label={t('Приоритет заявки')}
+                  value={controls.priority}
+                  onChange={(event) => controls.update({ priority: event.target.value })}
+                >
+                  <option value="">{t('Все приоритеты')}</option>
+                  {Object.entries(priorityLabels).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
+                </select>
+              </label>
+            ), !!controls?.priority)}
+            {heading('Статус', 'status_asc', 'status_desc', controls && (
+              <label className="ticket-column-filter-field">
+                <span>{t('Статус')}</span>
+                <select
+                  aria-label={t('Статус заявки')}
+                  value={controls.statusGroup === 'resolved' ? 'resolved-group' : controls.status}
+                  onChange={(event) => controls.update(event.target.value === 'resolved-group'
+                    ? { status: '', statusGroup: 'resolved' }
+                    : { status: event.target.value, statusGroup: '' })}
+                >
+                  <option value="">{t('Все статусы')}</option>
+                  {Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
+                  <option value="resolved-group">{t('Решённые и закрытые')}</option>
+                </select>
+              </label>
+            ), !!(controls?.status || controls?.statusGroup))}
+            {heading('Исполнитель', 'assignee_asc', 'assignee_desc', controls && (
+              <label className="ticket-column-filter-field">
+                <span>{t('Роль исполнителя')}</span>
+                <select
+                  aria-label={t('Роль исполнителя')}
+                  value={controls.assigneeRole}
+                  onChange={(event) => controls.update({ assigneeRole: event.target.value })}
+                >
+                  <option value="">{t('Все роли')}</option>
+                  {Object.entries(roleLabels).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
+                </select>
+              </label>
+            ), !!controls?.assigneeRole)}
+            {heading('Создана', 'oldest', 'newest')}
             <th>
               <span className="sr-only">{t('Открыть')}</span>
             </th>
@@ -345,6 +417,7 @@ function Stats({ counts }) {
       Icon: Ticket,
       color: 'blue',
       caption: 'Все обращения в системе',
+      href: '/tickets',
     },
     {
       label: 'Новые заявки',
@@ -352,6 +425,7 @@ function Stats({ counts }) {
       Icon: Inbox,
       color: 'amber',
       caption: 'Ожидают первого ответа',
+      href: '/tickets?status=NEW&notifications=new',
     },
     {
       label: 'В работе',
@@ -359,6 +433,7 @@ function Stats({ counts }) {
       Icon: Clock3,
       color: 'purple',
       caption: 'Команда уже решает',
+      href: '/tickets?status=IN_PROGRESS',
     },
     {
       label: 'Решённые заявки',
@@ -366,12 +441,13 @@ function Stats({ counts }) {
       Icon: CircleCheck,
       color: 'teal',
       caption: 'Помощь уже оказана',
+      href: '/tickets?statusGroup=resolved',
     },
   ];
   return (
     <div className="stats-grid">
-      {cards.map(({ label, value, Icon, color, caption }) => (
-        <article className="stat-card" key={label}>
+      {cards.map(({ label, value, Icon, color, caption, href }) => (
+        <Link className="stat-card stat-card-link" key={label} href={href}>
           <div className="stat-top">
             <span>{t(label)}</span>
             <span className={`stat-icon ${color}`}>
@@ -383,7 +459,7 @@ function Stats({ counts }) {
             <span className={`stat-dot ${color}`} />
             {t(caption)}
           </p>
-        </article>
+        </Link>
       ))}
     </div>
   );
@@ -652,42 +728,66 @@ export function SupportPage() {
 export function TicketsPage({ mine = false, support = false }) {
   const { t, locale } = useLanguage();
   const user = useCurrentUser();
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState(support ? 'NEW' : '');
-  const [priority, setPriority] = useState('');
-  const [assigneeRole, setAssigneeRole] = useState('');
-  const [sort, setSort] = useState(support ? 'oldest' : 'newest');
-  const [page, setPage] = useState(1);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.toString();
+  const query = searchParams.get('q') || '';
+  const status = searchParams.get('status') ?? (support && !searchParams.get('statusGroup') ? 'NEW' : '');
+  const priority = searchParams.get('priority') || '';
+  const assigneeRole = searchParams.get('assigneeRole') || '';
+  const categoryId = searchParams.get('categoryId') || '';
+  const statusGroup = searchParams.get('statusGroup') || '';
+  const sort = searchParams.get('sort') || (support ? 'oldest' : 'newest');
+  const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
+  const [search, setSearch] = useState(query);
+
+  function updateFilters(changes, resetPage = true) {
+    // Merge with the latest URL even when another control changed this frame.
+    const next = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries(changes)) {
+      if (support && key === 'status' && value === '') next.set(key, '');
+      else if (value === '' || value == null || (key === 'page' && Number(value) === 1)) next.delete(key);
+      else next.set(key, String(value));
+    }
+    if (resetPage) next.delete('page');
+    next.delete('notifications');
+    const value = next.toString();
+    window.history.replaceState(null, '', `${pathname}${value ? `?${value}` : ''}`);
+  }
+
+  useEffect(() => { setSearch(query); }, [query]);
   useEffect(() => {
+    if (search.trim() === query) return;
     const timer = setTimeout(() => {
-      setQuery(search.trim());
-      setPage(1);
+      updateFilters({ q: search.trim() });
     }, 250);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, query, urlQuery, pathname]);
   const params = new URLSearchParams({
     q: query,
     status,
     priority,
     assigneeRole,
+    categoryId,
+    statusGroup,
     sort,
     page: String(page),
-    ...(mine ? { mine: '1' } : {}),
+    ...(mine || searchParams.get('mine') === '1' ? { mine: '1' } : {}),
   });
   const { data, loading, error, reload } = useResource(
     `/api/tickets?${params}`,
   );
-  const filtered = !!(query || (!support && status) || priority || assigneeRole);
+  const { data: categoryData } = useResource('/api/categories');
+  const filtered = !!(query || (!support && status) || priority || assigneeRole || categoryId || statusGroup);
   function reset() {
     setSearch('');
-    setQuery('');
-    if (!support) setStatus('');
-    setPriority('');
-    setAssigneeRole('');
-    setSort(support ? 'oldest' : 'newest');
-    setPage(1);
+    window.history.replaceState(null, '', pathname);
   }
+  const controls = {
+    sort, status, priority, assigneeRole, categoryId, statusGroup,
+    categories: categoryData?.categories || [],
+    update: updateFilters,
+  };
   return (
     <>
       <PageTitle
@@ -697,7 +797,7 @@ export function TicketsPage({ mine = false, support = false }) {
             ? user.role === 'EMPLOYEE'
               ? 'Мои обращения в поддержку'
               : 'Обращения пользователей'
-            : mine ? 'Мои заявки' : 'Все заявки'
+            : 'Заявки'
         }
         description={
           support
@@ -728,8 +828,7 @@ export function TicketsPage({ mine = false, support = false }) {
                 type="button"
                 aria-pressed={status === value}
                 onClick={() => {
-                  setStatus(value);
-                  setPage(1);
+                  updateFilters({ status: value, statusGroup: '' });
                 }}
               >
                 {t(label)}
@@ -752,64 +851,6 @@ export function TicketsPage({ mine = false, support = false }) {
               </button>
             )}
           </label>
-          {!support && (
-            <select
-              aria-label={t('Статус заявки')}
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">{t('Все статусы')}</option>
-              {Object.entries(statusLabels).map(([key, label]) => (
-                <option value={key} key={key}>
-                  {t(label)}
-                </option>
-              ))}
-            </select>
-          )}
-          <select
-            aria-label={t('Приоритет заявки')}
-            value={priority}
-            onChange={(event) => {
-              setPriority(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('Все приоритеты')}</option>
-            {Object.entries(priorityLabels).map(([key, label]) => (
-              <option value={key} key={key}>
-                {t(label)}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label={t('Сортировка заявок')}
-            value={sort}
-            onChange={(event) => {
-              setSort(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="newest">{t('Сначала новые')}</option>
-            <option value="oldest">{t('Сначала старые')}</option>
-            <option value="priority">{t('По приоритету')}</option>
-            <option value="updated">{t('По обновлению')}</option>
-          </select>
-          <select
-            aria-label={t('Роль исполнителя')}
-            value={assigneeRole}
-            onChange={(event) => {
-              setAssigneeRole(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('Все роли')}</option>
-            {Object.entries(roleLabels).map(([key, label]) => (
-              <option value={key} key={key}>{t(label)}</option>
-            ))}
-          </select>
         </div>
         {(support || filtered) && (
           <div className="filter-summary">
@@ -829,13 +870,17 @@ export function TicketsPage({ mine = false, support = false }) {
             )}
           </div>
         )}
+        <TicketTable
+          tickets={loading || error ? [] : data?.tickets || []}
+          support={support}
+          controls={controls}
+        />
         {loading ? (
           <Loading />
         ) : error ? (
           <ResourceError error={error} retry={reload} />
         ) : data.tickets.length ? (
           <>
-            <TicketTable tickets={data.tickets} support={support} />
             <div className="pagination">
               <span>
                 {t('Показано {first}–{last} из {total}', {
@@ -848,7 +893,7 @@ export function TicketsPage({ mine = false, support = false }) {
                 <button
                   className="button secondary small"
                   disabled={page === 1}
-                  onClick={() => setPage((value) => value - 1)}
+                  onClick={() => updateFilters({ page: page - 1 }, false)}
                 >
                   <ArrowLeft size={15} /> {t('Назад')}
                 </button>
@@ -858,7 +903,7 @@ export function TicketsPage({ mine = false, support = false }) {
                 <button
                   className="button secondary small"
                   disabled={page * data.pageSize >= data.total}
-                  onClick={() => setPage((value) => value + 1)}
+                  onClick={() => updateFilters({ page: page + 1 }, false)}
                 >
                   {t('Далее')} <ArrowRight size={15} />
                 </button>

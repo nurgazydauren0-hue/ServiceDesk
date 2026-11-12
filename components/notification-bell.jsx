@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Bell, CheckCheck, FilePlus2, MessageSquare, RefreshCw } from 'lucide-react';
 import { useLanguage } from './language-provider';
 import { formatDate } from '../lib/date-format.js';
@@ -26,7 +26,10 @@ function storedReadIds(key) {
 export default function NotificationBell({ user, onNavigate }) {
   const { t, locale } = useLanguage();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const notificationMode = searchParams.get('notifications');
   const [open, setOpen] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [readIds, setReadIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +39,20 @@ export default function NotificationBell({ user, onNavigate }) {
   const triggerRef = useRef(null);
   const readKey = `servicedesk.notifications.read.${user.id}`;
   const unread = notifications.filter((item) => !readIds.includes(item.id)).length;
+  const visibleNotifications = onlyNew
+    ? notifications.filter((item) => item.type === 'ticket_created' && item.status === 'NEW')
+    : notifications;
+  const visibleUnread = visibleNotifications.filter((item) => !readIds.includes(item.id)).length;
 
-  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    const showNew = notificationMode === 'new';
+    setOnlyNew(showNew);
+    setOpen(showNew);
+    if (showNew) {
+      window.dispatchEvent(new CustomEvent('servicedesk:header-menu', { detail: 'notifications' }));
+      setRefreshVersion((value) => value + 1);
+    }
+  }, [pathname, notificationMode]);
 
   useEffect(() => {
     setNotifications([]);
@@ -135,6 +150,7 @@ export default function NotificationBell({ user, onNavigate }) {
 
   function toggle() {
     if (!open) {
+      setOnlyNew(false);
       window.dispatchEvent(new CustomEvent('servicedesk:header-menu', { detail: 'notifications' }));
       setRefreshVersion((value) => value + 1);
     }
@@ -158,16 +174,16 @@ export default function NotificationBell({ user, onNavigate }) {
         {unread > 0 && <span className="notification-count" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
       </button>
       {open && (
-        <section className="notification-panel" id="notification-panel" aria-label={t('Уведомления')}>
+        <section className="notification-panel" id="notification-panel" aria-label={t(onlyNew ? 'Новые заявки' : 'Уведомления')}>
           <div className="notification-heading">
-            <h2>{t('Уведомления')}</h2>
+            <h2>{t(onlyNew ? 'Новые заявки' : 'Уведомления')}</h2>
             <button
               type="button"
               className="notification-mark-all"
-              disabled={!unread}
+              disabled={!visibleUnread}
               title={t('Отметить все прочитанными')}
               aria-label={t('Отметить все прочитанными')}
-              onClick={() => markRead(notifications.map((item) => item.id))}
+              onClick={() => markRead(visibleNotifications.map((item) => item.id))}
             >
               <CheckCheck size={19} aria-hidden="true" />
             </button>
@@ -178,17 +194,17 @@ export default function NotificationBell({ user, onNavigate }) {
               <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>{t('Повторить')}</button>
             </div>
           )}
-          {loading && !notifications.length ? (
+          {loading && !visibleNotifications.length ? (
             <p className="notification-empty" role="status">{t('Загрузка уведомлений…')}</p>
-          ) : !notifications.length && !failed ? (
+          ) : !visibleNotifications.length && !failed ? (
             <div className="notification-empty">
               <Bell size={25} aria-hidden="true" />
-              <strong>{t('Новых уведомлений пока нет')}</strong>
-              <p>{t('Здесь появятся новые заявки, изменения и комментарии.')}</p>
+              <strong>{t(onlyNew ? 'Новых заявок пока нет' : 'Новых уведомлений пока нет')}</strong>
+              <p>{t(onlyNew ? 'Здесь появятся новые заявки, доступные вам.' : 'Здесь появятся новые заявки, изменения и комментарии.')}</p>
             </div>
-          ) : notifications.length > 0 ? (
+          ) : visibleNotifications.length > 0 ? (
             <ul className="notification-list">
-              {notifications.map((item) => {
+              {visibleNotifications.map((item) => {
                 const isUnread = !readIds.includes(item.id);
                 const Icon = item.type === 'comment_added' ? MessageSquare : item.type === 'ticket_created' ? FilePlus2 : RefreshCw;
                 return (
@@ -211,7 +227,16 @@ export default function NotificationBell({ user, onNavigate }) {
               })}
             </ul>
           ) : null}
-          <p className="notification-footnote">{t('Последние события по доступным вам заявкам')}</p>
+          <div className="notification-footer">
+            <Link
+              href="/tickets?status=NEW"
+              className="notification-all-new"
+              onClick={() => { setOpen(false); onNavigate?.(); }}
+            >
+              {t('Все новые заявки')}
+            </Link>
+            <p className="notification-footnote">{t('Последние события по доступным вам заявкам')}</p>
+          </div>
         </section>
       )}
     </div>

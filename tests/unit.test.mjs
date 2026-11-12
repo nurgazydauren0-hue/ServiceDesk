@@ -187,7 +187,7 @@ test('профиль не позволяет самостоятельно наз
 test('фильтры и идентификаторы ограничивают разрешённые значения и пагинацию', () => {
   const parsed = parseTicketFilters(
     new URLSearchParams(
-      'q=%20wi-fi%20&status=NEW&priority=HIGH&sort=oldest&assigneeRole=AGENT&page=2&pageSize=5&mine=1',
+      'q=%20wi-fi%20&status=NEW&priority=HIGH&categoryId=%20category-1%20&statusGroup=resolved&sort=oldest&assigneeRole=AGENT&page=2&pageSize=5&mine=1',
     ),
   );
   assert.equal(parsed.q, 'wi-fi');
@@ -195,8 +195,18 @@ test('фильтры и идентификаторы ограничивают р
   assert.equal(parsed.pageSize, 5);
   assert.equal(parsed.mine, '1');
   assert.equal(parsed.assigneeRole, 'AGENT');
+  assert.equal(parsed.categoryId, 'category-1');
+  assert.equal(parsed.statusGroup, 'resolved');
   assert.equal(parsed.sort, 'oldest');
   assert.equal(parseTicketFilters().assigneeRole, '');
+  assert.equal(parseTicketFilters().categoryId, '');
+  assert.equal(parseTicketFilters().statusGroup, '');
+  for (const column of ['title', 'category', 'priority', 'status', 'assignee', 'author']) {
+    for (const direction of ['asc', 'desc']) {
+      const sort = `${column}_${direction}`;
+      assert.equal(parseTicketFilters(new URLSearchParams({ sort })).sort, sort);
+    }
+  }
   for (const query of [
     'status=broken',
     'priority=broken',
@@ -207,6 +217,10 @@ test('фильтры и идентификаторы ограничивают р
     'mine=yes',
     'assigneeRole=OWNER',
     'assigneeRole=AGENT,ADMIN',
+    'statusGroup=closed',
+    'categoryId=' + 'x'.repeat(65),
+    'sort=title_ASC',
+    'sort=createdBy_asc',
   ]) {
     assert.throws(
       () => parseTicketFilters(new URLSearchParams(query)),

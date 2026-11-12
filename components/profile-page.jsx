@@ -144,8 +144,8 @@ export default function ProfilePage() {
           <span className="muted">
             {t('В команде с {date}', { date: joinedAt(user.createdAt, locale) })}
           </span>
-          <Link href="/my-tickets" className="button secondary">
-            <Ticket size={16} /> {t('Мои заявки')}
+          <Link href="/tickets" className="button secondary">
+            <Ticket size={16} /> {t('Заявки')}
           </Link>
         </section>
         <div>

@@ -1,7 +1,7 @@
-import { TicketsPage } from '../../../components/servicedesk-pages';
+import { redirect } from 'next/navigation';
 import { localizedMetadata } from '../../../lib/request-language';
 
-export const generateMetadata = localizedMetadata('Мои заявки');
+export const generateMetadata = localizedMetadata('Заявки');
 export default function Page() {
-  return <TicketsPage mine />;
+  redirect('/tickets');
 }

@@ -32,9 +32,8 @@ export function initials(name = '') {
 }
 const navigation = [
   { href: '/', label: 'Обзор', kind: 'dashboard' },
-  { href: '/tickets', label: 'Все заявки', kind: 'tickets' },
+  { href: '/tickets', label: 'Заявки', kind: 'tickets' },
   { href: '/tickets/new', label: 'Создать заявку', kind: 'create' },
-  { href: '/my-tickets', label: 'Мои заявки', kind: 'my-tickets' },
   { href: '/team', label: 'Сотрудники', kind: 'team', admin: true },
   { href: '/reports', label: 'Отчёты', kind: 'reports', admin: true },
 ];
