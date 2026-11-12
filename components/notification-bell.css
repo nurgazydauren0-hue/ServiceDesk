@@ -45,8 +45,10 @@
 }
 .notification-heading { display: flex; align-items: center; justify-content: space-between; padding: 14px 17px; border-bottom: 1px solid var(--line); }
 .notification-heading h2 { font-size: 15px; font-weight: 400; }
+.notification-heading-actions { display: flex; align-items: center; gap: 4px; }
 .notification-mark-all { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: var(--accent-text); }
 .notification-mark-all:hover:enabled { background: var(--accent-soft); }
+.notification-mark-all:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .notification-mark-all:disabled { opacity: .35; cursor: default; }
 .notification-list { list-style: none; margin: 0; padding: 0; max-height: min(480px, calc(100dvh - 220px)); overflow-y: auto; overscroll-behavior: contain; }
 .notification-list li + li { border-top: 1px solid var(--line); }

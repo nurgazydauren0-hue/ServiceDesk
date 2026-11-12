@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Bell, CheckCheck, FilePlus2, MessageSquare, RefreshCw } from 'lucide-react';
+import { Bell, CheckCheck, FilePlus2, MessageSquare, RefreshCw, RotateCcw } from 'lucide-react';
 import { useLanguage } from './language-provider';
 import { formatDate } from '../lib/date-format.js';
 import './notification-bell.css';
@@ -14,12 +14,12 @@ const labels = {
   comment_added: 'Новый комментарий',
 };
 
-function storedReadIds(key) {
+function storedReadIds(key, fallback = []) {
   try {
     const value = JSON.parse(window.localStorage.getItem(key) || '[]');
     return Array.isArray(value) ? value.filter((id) => typeof id === 'string').slice(-500) : [];
   } catch {
-    return [];
+    return fallback;
   }
 }
 
@@ -148,6 +148,17 @@ export default function NotificationBell({ user, onNavigate }) {
     }
   }
 
+  function markUnread(ids) {
+    const selectedIds = new Set(ids);
+    const next = storedReadIds(readKey, readIds).filter((id) => !selectedIds.has(id));
+    setReadIds(next);
+    try {
+      window.localStorage.setItem(readKey, JSON.stringify(next));
+    } catch {
+      // Keep the local view usable when browser storage is blocked.
+    }
+  }
+
   function toggle() {
     if (!open) {
       setOnlyNew(false);
@@ -177,16 +188,28 @@ export default function NotificationBell({ user, onNavigate }) {
         <section className="notification-panel" id="notification-panel" aria-label={t(onlyNew ? 'Новые заявки' : 'Уведомления')}>
           <div className="notification-heading">
             <h2>{t(onlyNew ? 'Новые заявки' : 'Уведомления')}</h2>
-            <button
-              type="button"
-              className="notification-mark-all"
-              disabled={!visibleUnread}
-              title={t('Отметить все прочитанными')}
-              aria-label={t('Отметить все прочитанными')}
-              onClick={() => markRead(visibleNotifications.map((item) => item.id))}
-            >
-              <CheckCheck size={19} aria-hidden="true" />
-            </button>
+            <div className="notification-heading-actions">
+              <button
+                type="button"
+                className="notification-mark-all"
+                disabled={!visibleUnread}
+                title={t('Отметить все прочитанными')}
+                aria-label={t('Отметить все прочитанными')}
+                onClick={() => markRead(visibleNotifications.map((item) => item.id))}
+              >
+                <CheckCheck size={19} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="notification-mark-all"
+                disabled={visibleUnread === visibleNotifications.length}
+                title={t('Отметить все непрочитанными')}
+                aria-label={t('Отметить все непрочитанными')}
+                onClick={() => markUnread(visibleNotifications.map((item) => item.id))}
+              >
+                <RotateCcw size={18} aria-hidden="true" />
+              </button>
+            </div>
           </div>
           {failed && (
             <div className="notification-error" role="status">
