@@ -11,14 +11,17 @@ try {
   const referenceDate = new Date();
   const specs = generateDemoTicketSpecs(referenceDate);
   const summary = await prisma.$transaction(async (db) => {
-    // Serialize this additive seed batch without changing the application schema.
+    // Serialize this additive seed batch.
     if (apply) await db.$queryRaw`SELECT pg_advisory_xact_lock(1904143807, 1702177)::text AS locked`;
     const [users, categories, existing] = await Promise.all([
       db.user.findMany({ select: { id: true, role: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
       db.category.findMany({ select: { id: true, name: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
       db.ticket.findMany({
-        where: { description: { contains: `[${DEMO_TICKET_BATCH}:` } },
-        select: { description: true },
+        where: { OR: [
+          { sourceKey: { startsWith: `[${DEMO_TICKET_BATCH}:` } },
+          { description: { contains: `[${DEMO_TICKET_BATCH}:` } },
+        ] },
+        select: { sourceKey: true, description: true },
       }),
     ]);
     if (!users.length || !categories.length)
@@ -27,13 +30,14 @@ try {
     if (!creators.length) creators.push(...users);
     const agents = users.filter((user) => user.role === 'AGENT');
     if (!agents.length) agents.push(...users.filter((user) => user.role === 'ADMIN'));
-    const knownMarkers = new Set(existing.map((ticket) => demoTicketMarkerFromDescription(ticket.description)));
+    const knownMarkers = new Set(existing.map((ticket) => ticket.sourceKey || demoTicketMarkerFromDescription(ticket.description)));
     const pending = specs.filter((spec) => !knownMarkers.has(spec.marker));
     const records = pending.map((spec) => {
       const index = specs.indexOf(spec);
       const category = categories.find((entry) => entry.name === spec.categoryName) || categories[index % categories.length];
       const agent = agents.length ? agents[index % agents.length] : null;
       return {
+        sourceKey: spec.marker,
         title: spec.title, description: spec.description, status: spec.status, priority: spec.priority,
         categoryId: category.id,
         createdById: creators[index % creators.length].id,
@@ -45,8 +49,8 @@ try {
     let created = [];
     let commentCount = 0;
     if (apply && records.length) {
-      created = await db.ticket.createManyAndReturn({ data: records, select: { id: true, description: true } });
-      const ticketsByMarker = new Map(created.map((ticket) => [demoTicketMarkerFromDescription(ticket.description), ticket.id]));
+      created = await db.ticket.createManyAndReturn({ data: records, select: { id: true, sourceKey: true } });
+      const ticketsByMarker = new Map(created.map((ticket) => [ticket.sourceKey, ticket.id]));
       const comments = pending.flatMap((spec) => {
         const index = specs.indexOf(spec);
         const author = agents.length ? agents[index % agents.length] : creators[index % creators.length];

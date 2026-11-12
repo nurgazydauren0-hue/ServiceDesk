@@ -47,6 +47,7 @@ model Category {
 
 model Ticket {
   id           Int          @id @default(autoincrement())
+  sourceKey    String?      @unique
   title        String       @db.VarChar(160)
   description  String       @db.Text
   status       TicketStatus @default(NEW)
