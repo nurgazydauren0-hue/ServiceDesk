@@ -8,11 +8,10 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
-    "predev": "node prisma/local-db.mjs start-if-configured && prisma generate",
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "prisma generate && next build",
     "start": "next start",
-    "test": "node --test tests/unit.test.mjs tests/notifications.test.mjs tests/ticket-query.test.mjs tests/local-workspace.test.mjs tests/ui-preferences.test.mjs tests/ticket-drafts.test.mjs tests/ticket-favorites.test.mjs tests/trend-periods.test.mjs tests/trend-format.test.mjs tests/demo-tickets.test.mjs tests/session-cookies.test.mjs",
+    "test": "node --test tests/unit.test.mjs tests/notifications.test.mjs tests/ticket-query.test.mjs tests/local-workspace.test.mjs tests/ui-preferences.test.mjs tests/ticket-drafts.test.mjs tests/ticket-favorites.test.mjs tests/trend-periods.test.mjs tests/trend-format.test.mjs tests/demo-tickets.test.mjs tests/session-cookies.test.mjs tests/dev-settings.test.mjs",
     "test:integration": "node --env-file-if-exists=.env --test tests/integration.test.mjs",
     "db:local:start": "node prisma/local-db.mjs start",
     "db:local:stop": "node prisma/local-db.mjs stop",
@@ -42,6 +41,9 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.4.3",
+    "@electric-sql/pglite-socket": "0.1.3",
+    "@next/env": "16.4.2",
     "@tailwindcss/postcss": "4.3.3",
     "prisma": "7.10.1",
     "tailwindcss": "4.3.3"
