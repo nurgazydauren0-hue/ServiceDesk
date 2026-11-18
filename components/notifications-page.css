@@ -1,0 +1,50 @@
+.notifications-page { max-width: 1120px; margin-inline: auto; }
+.notifications-page .page-heading { align-items: flex-start; }
+.notifications-page .page-heading .button { flex-shrink: 0; }
+.notifications-archive { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.notifications-archive-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+.notifications-archive-summary { min-width: 0; }
+.notifications-archive-title { display: flex; align-items: center; gap: 9px; color: var(--text); font-size: 14px; }
+.notifications-archive-title svg { color: var(--accent-text); }
+.notifications-archive-summary p { margin-top: 7px; color: var(--muted); font-size: 10px; line-height: 1.7; }
+.notifications-archive-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.notifications-archive-actions .button { font-size: 10px; white-space: normal; text-align: left; }
+.notifications-archive-actions .button.secondary { background: var(--surface); border-color: var(--line); color: var(--muted); }
+.notifications-archive-actions .button.secondary:hover:enabled { background: var(--surface-subtle); color: var(--text); }
+.notifications-archive-list { list-style: none; margin: 0; padding: 0; }
+.notifications-archive-item { display: flex; align-items: center; gap: 10px; padding-right: 20px; }
+.notifications-archive-item + .notifications-archive-item { border-top: 1px solid var(--line); }
+.notifications-archive-item.is-unread { background: var(--accent-soft); }
+.notifications-archive-item:hover { background: var(--surface-subtle); }
+.notifications-archive-link { display: flex; align-items: flex-start; gap: 15px; padding: 20px 22px; flex: 1; min-width: 0; }
+.notifications-archive-link:focus-visible { outline-offset: -3px; }
+.notifications-archive-icon { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 12px; flex-shrink: 0; background: var(--surface); color: var(--accent-text); }
+.notifications-archive-content { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.notifications-archive-event { display: flex; align-items: center; gap: 9px; }
+.notifications-archive-event strong { color: var(--text); font-size: 12px; font-weight: 400; }
+.notifications-archive-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: var(--accent); }
+.notifications-archive-ticket { color: var(--text); overflow-wrap: anywhere; font-size: 12px; line-height: 1.8; }
+.notifications-archive-author, .notifications-archive-content time { color: var(--muted); font-size: 10px; line-height: 1.7; }
+.notifications-archive-read-toggle { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border: 1px solid transparent; border-radius: 8px; color: var(--accent-text); background: transparent; }
+.notifications-archive-read-toggle:hover { background: var(--surface); border-color: var(--line); }
+.notifications-archive-error { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 16px 22px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.notifications-archive-error .text-link { border: 0; padding: 4px 0; background: transparent; text-decoration: underline; }
+.notifications-archive-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 55px 24px; text-align: center; color: var(--muted); }
+.notifications-archive-empty h2 { color: var(--text); }
+.notifications-archive-empty p { max-width: 380px; font-size: 12px; line-height: 1.8; }
+.notifications-archive-empty-icon { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 18px; background: var(--accent-soft); color: var(--accent-text); }
+.notifications-archive-pagination { display: flex; justify-content: center; padding: 20px; border-top: 1px solid var(--line); }
+.notifications-archive-pagination .button.secondary { background: var(--surface); border-color: var(--line); color: var(--accent-text); }
+@media (max-width: 620px) {
+  .notifications-page .page-heading { flex-wrap: wrap; gap: 16px; }
+  .notifications-page .page-heading .button { width: 100%; }
+  .notifications-archive-toolbar { padding: 17px 16px; gap: 14px; }
+  .notifications-archive-actions { width: 100%; }
+  .notifications-archive-actions .button { flex: 1; }
+  .notifications-archive-link { padding: 17px 14px; gap: 11px; }
+  .notifications-archive-item { padding-right: 10px; gap: 0; }
+  .notifications-archive-icon { width: 34px; height: 34px; border-radius: 9px; }
+  .notifications-archive-icon svg { width: 17px; height: 17px; }
+  .notifications-archive-ticket { font-size: 11px; }
+  .notifications-archive-error { padding: 14px 16px; }
+}

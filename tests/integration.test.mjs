@@ -300,6 +300,8 @@ test(
           '/api/profile',
           '/api/team',
           '/api/reports',
+          '/api/notifications',
+          '/api/notifications?scope=all&page=1',
         ]) {
           const result = await anonymous.request(path);
           assert.equal(result.response.status, 401, path);
@@ -727,6 +729,61 @@ test(
         const reports = await admin.client.request('/api/reports');
         assert.equal(reports.response.status, 200, reports.text);
         assert.equal(reports.body.counts.total, await prisma.ticket.count());
+      },
+    );
+
+    await t.test(
+      'архив уведомлений включает старые события, сохраняет права и не повторяет страницы',
+      async () => {
+        const oldDate = new Date(Date.now() - 45 * 86_400_000);
+        const archived = await prisma.ticket.createManyAndReturn({
+          data: Array.from({ length: 60 }, (_, index) => ({
+            title: `${marker} archive ${index}`,
+            description: 'Historical notification fixture for pagination and access checks.',
+            categoryId: category.id,
+            createdById: index < 30 ? employee.id : stranger.id,
+            assignedToId: index < 30 ? agent.id : otherAgent.id,
+            status: 'RESOLVED',
+            createdAt: oldDate,
+            updatedAt: oldDate,
+            resolvedAt: oldDate,
+          })),
+          select: { id: true, createdById: true },
+        });
+        const archivedIds = new Set(archived.map((entry) => entry.id));
+        const ownIds = new Set(archived.filter((entry) => entry.createdById === employee.id).map((entry) => entry.id));
+        const recent = await admin.client.request('/api/notifications');
+        assert.equal(recent.response.status, 200, recent.text);
+        assert.ok(recent.body.notifications.every((entry) => !archivedIds.has(entry.ticketId)));
+
+        for (const viewer of [admin, employee, agent]) {
+          const entries = [];
+          let asOf;
+          for (let page = 1; page <= 10; page += 1) {
+            const query = new URLSearchParams({ scope: 'all', page: String(page) });
+            if (asOf) query.set('asOf', asOf);
+            const result = await viewer.client.request(`/api/notifications?${query}`);
+            assert.equal(result.response.status, 200, result.text);
+            assert.equal(result.body.pageSize, 20);
+            assert.equal(result.body.page, page);
+            assert.equal(result.body.since, null);
+            if (asOf) assert.equal(result.body.generatedAt, asOf);
+            asOf = result.body.generatedAt;
+            entries.push(...result.body.notifications);
+            if (!result.body.hasMore) break;
+            assert.ok(page < 10, 'Archive pagination did not finish');
+          }
+          assert.equal(new Set(entries.map((entry) => entry.id)).size, entries.length);
+          const restored = entries.filter((entry) => archivedIds.has(entry.ticketId));
+          assert.equal(restored.length, viewer.role === 'ADMIN' ? 60 : 30);
+          assert.ok(restored.every((entry) => entry.type === 'ticket_created'));
+          if (viewer.role !== 'ADMIN') assert.ok(restored.every((entry) => ownIds.has(entry.ticketId)));
+        }
+        for (const query of ['scope=all&page=0', 'scope=invalid', 'scope=all&page=1&page=2']) {
+          assert.equal((await admin.client.request(`/api/notifications?${query}`)).response.status, 400);
+        }
+        const page = await admin.client.request('/notifications');
+        assert.equal(page.response.status, 200, page.text);
       },
     );
 

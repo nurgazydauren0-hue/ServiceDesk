@@ -71,6 +71,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
     { href: '/support', label: 'Поддержка' },
     { href: '/settings', label: 'Настройки' },
     { href: '/profile', label: 'Профиль' },
+    { href: '/notifications', label: 'Уведомления' },
   ].find((entry) => entry.href === pathname);
   const title =
     item?.label ||
