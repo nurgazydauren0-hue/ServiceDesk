@@ -14,12 +14,19 @@ const eventLabels = {
   ticket_updated: 'Заявка обновлена',
   comment_added: 'Новый комментарий',
 };
+const filters = [
+  { value: 'all', label: 'Все' },
+  { value: 'read', label: 'Прочитанные' },
+  { value: 'unread', label: 'Непрочитанные' },
+];
 
 export default function NotificationsPage() {
   const user = useCurrentUser();
   const { t, locale } = useLanguage();
   const { readIds, markRead, markUnread } = useNotificationReadState(user.id);
   const [notifications, setNotifications] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [filterTarget, setFilterTarget] = useState(20);
   const [page, setPage] = useState(0);
   const [asOf, setAsOf] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -27,12 +34,24 @@ export default function NotificationsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [failedRequest, setFailedRequest] = useState(null);
   const controllerRef = useRef(null);
-  const unreadCount = notifications.filter((item) => !readIds.includes(item.id)).length;
+  const inFlightRef = useRef(false);
+  const readSet = new Set(readIds);
+  const loadedIds = new Set(notifications.map((item) => item.id));
+  const unreadCount = notifications.filter((item) => !readSet.has(item.id)).length;
+  const visibleNotifications = notifications.filter((item) => filter === 'all' ||
+    (filter === 'read' ? readSet.has(item.id) : !readSet.has(item.id)));
+  const visibleUnread = visibleNotifications.filter((item) => !readSet.has(item.id)).length;
+  const canLoadMore = hasMore && (filter !== 'read' ||
+    readIds.some((id) => !loadedIds.has(id)));
+  const visibleTarget = filter === 'read' ? Math.min(filterTarget, readIds.length) : filterTarget;
+  const searching = filter !== 'all' && canLoadMore &&
+    visibleNotifications.length < visibleTarget && !failedRequest;
 
   const load = useCallback(async (request) => {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
+    inFlightRef.current = true;
     setFailedRequest(null);
     setLoading(!request.append);
     setLoadingMore(request.append);
@@ -58,6 +77,7 @@ export default function NotificationsPage() {
     } catch (error) {
       if (!controller.signal.aborted) setFailedRequest(request);
     } finally {
+      if (controllerRef.current === controller) inFlightRef.current = false;
       if (!controller.signal.aborted) {
         setLoading(false);
         setLoadingMore(false);
@@ -67,12 +87,24 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     setNotifications([]);
+    setFilter('all');
+    setFilterTarget(20);
     setPage(0);
     setAsOf(null);
     setHasMore(false);
     load({ page: 1, append: false, asOf: null });
     return () => controllerRef.current?.abort();
   }, [load]);
+
+  useEffect(() => {
+    if (!searching || loading || loadingMore || inFlightRef.current) return;
+    load({ page: page + 1, append: true, asOf });
+  }, [searching, loading, loadingMore, page, asOf, load]);
+
+  function changeFilter(value) {
+    setFilter(value);
+    setFilterTarget(20);
+  }
 
   return (
     <div className="notifications-page">
@@ -85,13 +117,13 @@ export default function NotificationsPage() {
           type="button"
           className="button secondary"
           disabled={loading || loadingMore}
-          onClick={() => load({ page: 1, append: false, asOf: null })}
+          onClick={() => { setFilterTarget(20); load({ page: 1, append: false, asOf: null }); }}
         >
           <RefreshCw size={16} aria-hidden="true" /> {t('Обновить уведомления')}
         </button>
       </div>
 
-      <section className="notifications-archive" aria-label={t('Лента уведомлений')} aria-busy={loading || loadingMore}>
+      <section className="notifications-archive" aria-label={t('Лента уведомлений')} aria-busy={loading || loadingMore || searching}>
         <div className="notifications-archive-toolbar">
           <div className="notifications-archive-summary" aria-live="polite">
             <span className="notifications-archive-title"><Bell size={18} aria-hidden="true" /> {t('Все события')}</span>
@@ -101,20 +133,31 @@ export default function NotificationsPage() {
             <button
               type="button"
               className="button secondary small"
-              disabled={!unreadCount}
-              onClick={() => markRead(notifications.map((item) => item.id))}
+              disabled={!visibleUnread}
+              onClick={() => markRead(visibleNotifications.map((item) => item.id))}
             >
-              <CheckCheck size={16} aria-hidden="true" /> {t('Отметить загруженные прочитанными')}
+              <CheckCheck size={16} aria-hidden="true" /> {t('Отметить показанные прочитанными')}
             </button>
             <button
               type="button"
               className="button secondary small"
-              disabled={!notifications.length || unreadCount === notifications.length}
-              onClick={() => markUnread(notifications.map((item) => item.id))}
+              disabled={!visibleNotifications.length || visibleUnread === visibleNotifications.length}
+              onClick={() => markUnread(visibleNotifications.map((item) => item.id))}
             >
-              <RotateCcw size={15} aria-hidden="true" /> {t('Отметить загруженные непрочитанными')}
+              <RotateCcw size={15} aria-hidden="true" /> {t('Отметить показанные непрочитанными')}
             </button>
           </div>
+        </div>
+
+        <div className="notifications-archive-filterbar">
+          <div className="notifications-archive-filters" role="group" aria-label={t('Фильтр уведомлений')}>
+            {filters.map(({ value, label }) => (
+              <button key={value} type="button" aria-pressed={filter === value} onClick={() => changeFilter(value)}>
+                {t(label)}
+              </button>
+            ))}
+          </div>
+          <span className="notifications-archive-filter-count" aria-live="polite">{t('Показано: {count}', { count: visibleNotifications.length })}</span>
         </div>
 
         {failedRequest && (
@@ -124,21 +167,21 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {loading && !notifications.length ? (
+        {(loading || loadingMore || searching) && !visibleNotifications.length ? (
           <div className="notifications-archive-empty" role="status">
             <LoaderCircle size={26} className="spin" aria-hidden="true" />
-            <p>{t('Загрузка уведомлений…')}</p>
+            <p>{t(searching ? 'Поиск уведомлений…' : 'Загрузка уведомлений…')}</p>
           </div>
-        ) : !notifications.length && !failedRequest ? (
+        ) : !visibleNotifications.length && !failedRequest ? (
           <div className="notifications-archive-empty">
             <span className="notifications-archive-empty-icon"><Bell size={27} aria-hidden="true" /></span>
-            <h2>{t('Уведомлений пока нет')}</h2>
-            <p>{t('Здесь появятся новые заявки, изменения и комментарии.')}</p>
+            <h2>{t(filter === 'read' ? 'Прочитанных уведомлений пока нет' : filter === 'unread' ? 'Непрочитанных уведомлений нет' : 'Уведомлений пока нет')}</h2>
+            <p>{t(filter === 'read' ? 'Откройте уведомление или отметьте его прочитанным.' : filter === 'unread' ? 'Новые непрочитанные события появятся здесь.' : 'Здесь появятся новые заявки, изменения и комментарии.')}</p>
           </div>
-        ) : notifications.length > 0 ? (
+        ) : visibleNotifications.length > 0 ? (
           <ul className="notifications-archive-list">
-            {notifications.map((item) => {
-              const isRead = readIds.includes(item.id);
+            {visibleNotifications.map((item) => {
+              const isRead = readSet.has(item.id);
               const Icon = item.type === 'comment_added' ? MessageSquare : item.type === 'ticket_created' ? FilePlus2 : RefreshCw;
               const toggleLabel = t(isRead ? 'Отметить непрочитанным: {title}' : 'Отметить прочитанным: {title}', { title: item.ticketTitle });
               return (
@@ -170,16 +213,18 @@ export default function NotificationsPage() {
           </ul>
         ) : null}
 
-        {hasMore && (
+        {canLoadMore && (
           <div className="notifications-archive-pagination">
             <button
               type="button"
               className="button secondary"
-              disabled={loading || loadingMore}
-              onClick={() => load({ page: page + 1, append: true, asOf })}
+              disabled={loading || loadingMore || searching}
+              onClick={() => filter === 'all'
+                ? load({ page: page + 1, append: true, asOf })
+                : setFilterTarget(Math.max(filterTarget, visibleNotifications.length) + 20)}
             >
-              {loadingMore && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
-              {t(loadingMore ? 'Загрузка уведомлений…' : 'Загрузить ещё уведомления')}
+              {(loadingMore || searching) && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
+              {t(loadingMore || searching ? 'Загрузка уведомлений…' : 'Загрузить ещё уведомления')}
             </button>
           </div>
         )}
