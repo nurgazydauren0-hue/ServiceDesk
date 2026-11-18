@@ -94,6 +94,7 @@
 .ticket-column-popover-fields select,
 .ticket-column-popover-fields input { width: 100%; min-width: 0; font-size: 11px; }
 .ticket-column-popover-fields button { align-self: flex-start; }
+.ticket-column-filter-error { display: flex; flex-direction: column; gap: 6px; color: var(--muted); }
 
 @media (max-width: 440px) {
   .ticket-column-controls { gap: 4px; }

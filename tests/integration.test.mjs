@@ -296,6 +296,7 @@ test(
       async () => {
         for (const path of [
           '/api/tickets',
+          '/api/tickets/filter-options',
           '/api/dashboard',
           '/api/profile',
           '/api/team',
@@ -555,6 +556,46 @@ test(
         const member = team.body.users.find((user) => user.id === agent.id);
         assert.equal(member.assignedCount, 1);
         assert.equal(member.openAssignedCount, 1);
+      },
+    );
+
+    await t.test(
+      'пользователи фильтра исполнителя ограничены доступными заявками',
+      async () => {
+        for (const viewer of [employee, agent]) {
+          const options = await viewer.client.request('/api/tickets/filter-options');
+          assert.equal(options.response.status, 200, options.text);
+          assert.deepEqual(options.body.users, [{
+            id: agent.id, name: agent.name, role: agent.role,
+          }]);
+        }
+        for (const viewer of [stranger, otherAgent]) {
+          const options = await viewer.client.request('/api/tickets/filter-options');
+          assert.equal(options.response.status, 200, options.text);
+          assert.deepEqual(options.body.users, []);
+        }
+        const adminOptions = await admin.client.request('/api/tickets/filter-options');
+        assert.equal(adminOptions.response.status, 200, adminOptions.text);
+        for (const member of [employee, stranger, agent, otherAgent, admin])
+          assert.ok(adminOptions.body.users.some((entry) => entry.id === member.id));
+        assert.ok(adminOptions.body.users.every((entry) =>
+          Object.keys(entry).sort().join(',') === 'id,name,role'));
+
+        const matching = await employee.client.request(
+          `/api/tickets?assignedToId=${agent.id}&assigneeRole=AGENT&pageSize=1`,
+        );
+        assert.equal(matching.response.status, 200, matching.text);
+        assert.equal(matching.body.total, 1);
+        assert.deepEqual(matching.body.tickets.map((ticket) => ticket.id), [ticketId]);
+        for (const query of [
+          `assignedToId=${otherAgent.id}`,
+          `assignedToId=${agent.id}&assigneeRole=ADMIN`,
+        ]) {
+          const unmatched = await employee.client.request(`/api/tickets?${query}`);
+          assert.equal(unmatched.response.status, 200, unmatched.text);
+          assert.equal(unmatched.body.total, 0);
+          assert.deepEqual(unmatched.body.tickets, []);
+        }
       },
     );
 
