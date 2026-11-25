@@ -9,6 +9,9 @@ import { formatDate } from '../lib/date-format.js';
 import { useNotificationReadState } from './use-notification-read-state';
 import './notification-bell.css';
 
+// Matches NOTIFICATION_LIMIT on the server: a full feed may hide older unread events.
+const FEED_LIMIT = 40;
+
 const labels = {
   ticket_created: 'Новая заявка',
   ticket_updated: 'Заявка обновлена',
@@ -30,6 +33,7 @@ export default function NotificationBell({ user, onNavigate }) {
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
   const unread = notifications.filter((item) => !readIds.includes(item.id)).length;
+  const unreadLabel = unread > 99 ? '99+' : notifications.length >= FEED_LIMIT ? `${unread}+` : String(unread);
   const visibleNotifications = onlyNew
     ? notifications.filter((item) => item.type === 'ticket_created' && item.status === 'NEW')
     : notifications;
@@ -146,7 +150,7 @@ export default function NotificationBell({ user, onNavigate }) {
         onClick={toggle}
       >
         <Bell size={20} aria-hidden="true" />
-        {unread > 0 && <span className="notification-count" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
+        {unread > 0 && <span className="notification-count" aria-hidden="true">{unreadLabel}</span>}
       </button>
       {open && (
         <section className="notification-panel" id="notification-panel" aria-label={t(onlyNew ? 'Новые заявки' : 'Уведомления')}>

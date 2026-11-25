@@ -1,5 +1,5 @@
 import { apiRoute } from '../../../../lib/http.js';
-import { readJsonBody } from '../../../../lib/api-errors.js';
+import { ApiError, readJsonBody } from '../../../../lib/api-errors.js';
 import { parseBody, categorySchema } from '../../../../lib/validation.js';
 import { prisma } from '../../../../lib/prisma.js';
 
@@ -19,7 +19,13 @@ export const PATCH = apiRoute(
 );
 export const DELETE = apiRoute(
   async (_request, context) => {
-    await prisma.category.delete({ where: { id: (await context.params).id } });
+    const id = (await context.params).id;
+    if (await prisma.ticket.count({ where: { categoryId: id } }))
+      throw new ApiError(
+        'Категория используется в заявках. Сначала переведите их в другую категорию.',
+        409,
+      );
+    await prisma.category.delete({ where: { id } });
     return new Response(null, { status: 204 });
   },
   { mutation: true, roles: ['ADMIN'] },

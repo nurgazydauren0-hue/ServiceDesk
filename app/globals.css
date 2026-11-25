@@ -2114,14 +2114,19 @@ td:last-child {
 }
 .password-field {
   position: relative;
+  margin-top: 9px;
 }
+/* The input sits inside a wrapper, so it needs the same full width as direct .field inputs. */
 .password-field input {
+  display: block;
+  width: 100%;
   padding-right: 44px;
 }
 .password-field button {
   position: absolute;
   right: 12px;
-  top: 15px;
+  top: 50%;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
   background: none;

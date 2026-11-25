@@ -137,6 +137,16 @@
   35% { transform: rotate(-7deg); }
 }
 
+:where(a, button):is(:hover, :focus-visible) .ani-category {
+  animation: nav-category-swing 1s ease-in-out infinite;
+  transform-box: view-box;
+  transform-origin: 8px 8px;
+}
+@keyframes nav-category-swing {
+  0%, 100% { transform: rotate(0); }
+  45% { transform: rotate(-9deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animated-nav-icon,
   .animated-nav-icon * {

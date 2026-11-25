@@ -35,6 +35,7 @@ const navigation = [
   { href: '/tickets', label: 'Заявки', kind: 'tickets' },
   { href: '/tickets/new', label: 'Создать заявку', kind: 'create' },
   { href: '/team', label: 'Сотрудники', kind: 'team', admin: true },
+  { href: '/categories', label: 'Категории', kind: 'categories', admin: true },
   { href: '/reports', label: 'Отчёты', kind: 'reports', admin: true },
 ];
 

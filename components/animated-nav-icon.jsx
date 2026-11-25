@@ -56,6 +56,12 @@ export function AnimatedNavIcon({ kind, size = 19, success = false }) {
         </g>
       </>
     ),
+    categories: (
+      <g className="ani-category">
+        <path d="M3 5a2 2 0 0 1 2-2h5.2a2 2 0 0 1 1.4.6l8.8 8.8a2 2 0 0 1 0 2.8l-5.2 5.2a2 2 0 0 1-2.8 0L3.6 11.6A2 2 0 0 1 3 10.2Z" />
+        <circle cx="8" cy="8" r="1.4" />
+      </g>
+    ),
     reports: (
       <>
         <path d="M3 3v18h18" />

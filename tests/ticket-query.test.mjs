@@ -130,3 +130,15 @@ test('схема отклоняет неизвестные поля сортир
     { assignedToId: 'x'.repeat(65) }, { assignedToId: '   ' },
   ]) assert.throws(() => query(admin, values), (error) => error.status === 400);
 });
+
+test('группа открытых и фильтр «без исполнителя» сужают область доступа до подсчёта', () => {
+  const result = query(agent, { statusGroup: 'open', assignedToId: 'none' });
+  assert.deepEqual(result.findMany.where.AND, [
+    { OR: [{ assignedToId: agent.id }, { createdById: agent.id }] },
+    { status: { in: ['NEW', 'IN_PROGRESS', 'WAITING'] } },
+    { assignedToId: null },
+  ]);
+  assert.equal(result.count.where, result.findMany.where);
+  assert.deepEqual(query(admin, { assignedToId: 'user-7' }).findMany.where.AND.at(-1), { assignedToId: 'user-7' });
+  assert.throws(() => query(admin, { statusGroup: 'closed' }), (error) => error.status === 400);
+});

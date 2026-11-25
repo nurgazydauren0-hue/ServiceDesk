@@ -42,6 +42,17 @@ import {
   TrendingUp,
   UsersRound,
   X,
+  UserX,
+  Flame,
+  Hourglass,
+  Download,
+  Timer,
+  Tags,
+  UserPlus,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Save,
 } from 'lucide-react';
 import { initials, roleLabels, useCurrentUser } from './servicedesk-shell';
 import AnimatedNavIcon from './animated-nav-icon';
@@ -58,6 +69,7 @@ import { EMPTY_TICKET_DRAFT, hasTicketDraft, isCommentDraft, isTicketDraft } fro
 import './dashboard-interactions.css';
 import './stat-card-links.css';
 import './trend-periods.css';
+import './admin-workspace.css';
 
 export const statusLabels = {
   NEW: 'Новая',
@@ -273,6 +285,10 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
   const filterUsers = (controls?.users || []).filter((member) =>
     !controls.assigneeRole || member.role === controls.assigneeRole,
   );
+  // Offer only roles of assignees the viewer can actually see (an employee sees just their agents).
+  const roleOptions = Object.entries(roleLabels).filter(([role]) =>
+    role === controls?.assigneeRole || (controls?.users || []).some((member) => member.role === role),
+  );
   function heading(label, sortAsc, sortDesc, children, filterActive = false) {
     if (!controls) return <th>{t(label)}</th>;
     return (
@@ -329,12 +345,13 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
                 <span>{t('Статус')}</span>
                 <select
                   aria-label={t('Статус заявки')}
-                  value={controls.statusGroup === 'resolved' ? 'resolved-group' : controls.status}
-                  onChange={(event) => controls.update(event.target.value === 'resolved-group'
-                    ? { status: '', statusGroup: 'resolved' }
+                  value={controls.statusGroup ? `${controls.statusGroup}-group` : controls.status}
+                  onChange={(event) => controls.update(event.target.value.endsWith('-group')
+                    ? { status: '', statusGroup: event.target.value.replace('-group', '') }
                     : { status: event.target.value, statusGroup: '' })}
                 >
                   <option value="">{t('Все статусы')}</option>
+                  <option value="open-group">{t('Открытые (новые, в работе, ожидание)')}</option>
                   {Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
                   <option value="resolved-group">{t('Решённые и закрытые')}</option>
                 </select>
@@ -342,6 +359,8 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
             ), !!(controls?.status || controls?.statusGroup))}
             {heading('Исполнитель', 'assignee_asc', 'assignee_desc', controls && (
               <>
+              {/* With a single possible role the role filter adds nothing, so it is hidden. */}
+              {(roleOptions.length > 1 || controls.assigneeRole) && (
               <label className="ticket-column-filter-field">
                 <span>{t('Роль исполнителя')}</span>
                 <select
@@ -350,9 +369,10 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
                   onChange={(event) => controls.update({ assigneeRole: event.target.value, assignedToId: '' })}
                 >
                   <option value="">{t('Все роли')}</option>
-                  {Object.entries(roleLabels).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
+                  {roleOptions.map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
                 </select>
               </label>
+              )}
               <label className="ticket-column-filter-field">
                 <span>{t('Пользователь')}</span>
                 <select
@@ -362,7 +382,8 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
                   onChange={(event) => controls.update({ assignedToId: event.target.value })}
                 >
                   <option value="">{t(controls.usersLoading ? 'Загружаем данные…' : 'Все пользователи')}</option>
-                  {controls.assignedToId && !filterUsers.some((member) => member.id === controls.assignedToId) && (
+                  <option value="none">{t('Без исполнителя')}</option>
+                  {controls.assignedToId && controls.assignedToId !== 'none' && !filterUsers.some((member) => member.id === controls.assignedToId) && (
                     <option value={controls.assignedToId}>{t('Выбранный пользователь недоступен')}</option>
                   )}
                   {filterUsers.map((member) => (
@@ -655,7 +676,8 @@ const trendPeriods = [
   ['year', 'Последний 1 год'],
   ['custom', 'Свой диапазон'],
 ];
-const isTrendPeriod = (value) => trendPeriods.some(([period]) => period === value);
+// "auto" means the server picks the shortest period with activity until the user chooses one.
+const isTrendPeriod = (value) => value === 'auto' || trendPeriods.some(([period]) => period === value);
 const emptyTrendRange = Object.freeze({ startDate: '', endDate: '' });
 const isStoredTrendRange = (value) => value && typeof value === 'object' && !Array.isArray(value)
   && Object.keys(value).length === 2
@@ -669,9 +691,12 @@ function TicketTrendPanel({ initialData, endpoint, title }) {
   const { value: period, setValue: setPeriod, ready } = usePersistentLocalState({
     userId: user.id,
     name: `trend-period:${endpoint}`,
-    defaultValue: '14d',
+    defaultValue: 'auto',
     validate: isTrendPeriod,
   });
+  // The page data already contains the trend for the automatic (or the same) period.
+  const useInitial = period === 'auto' || (period !== 'custom' && period === initialData?.trendPeriod);
+  const shownPeriod = period === 'auto' ? initialData?.trendPeriod || '14d' : period;
   const { value: savedRange, setValue: saveRange, ready: rangeReady } = usePersistentLocalState({
     userId: user.id,
     name: `trend-range:${endpoint}`,
@@ -699,7 +724,7 @@ function TicketTrendPanel({ initialData, endpoint, title }) {
     query.set('startDate', savedRange.startDate);
     query.set('endDate', savedRange.endDate);
   }
-  const trendUrl = period === '14d' || (period === 'custom' && (!hasSavedRange || savedRangeError))
+  const trendUrl = useInitial || (period === 'custom' && (!hasSavedRange || savedRangeError))
     ? '' : `${endpoint}?${query}`;
 
   useEffect(() => {
@@ -725,8 +750,8 @@ function TicketTrendPanel({ initialData, endpoint, title }) {
     setRevision((value) => value + 1);
   }
 
-  const current = period === '14d' ? initialData : result.key === trendUrl ? result.data : null;
-  const error = savedRangeError || (result.key === trendUrl && period !== '14d' ? result.error : '');
+  const current = useInitial ? initialData : result.key === trendUrl ? result.data : null;
+  const error = savedRangeError || (result.key === trendUrl && !useInitial ? result.error : '');
   const waitingForRange = period === 'custom' && !hasSavedRange;
   const loading = !waitingForRange && !current && !error;
   const totals = (current?.trend || []).reduce((sum, point) => ({
@@ -743,7 +768,7 @@ function TicketTrendPanel({ initialData, endpoint, title }) {
         <select
           className="period-label trend-period-select"
           aria-label={t('Период динамики обращений')}
-          value={period}
+          value={shownPeriod}
           disabled={!ready || !rangeReady}
           onChange={(event) => { setRangeError(''); setPeriod(event.target.value); }}
         >
@@ -811,11 +836,129 @@ function TicketTrendPanel({ initialData, endpoint, title }) {
   );
 }
 
+function AttentionPanel({ attention, onChanged }) {
+  const { t, locale } = useLanguage();
+  const user = useCurrentUser();
+  const admin = user.role === 'ADMIN';
+  const team = useResource(admin ? '/api/team' : '/api/me');
+  const [busy, setBusy] = useState('');
+  const [failure, setFailure] = useState('');
+  const own = admin ? '' : `&assignedToId=${encodeURIComponent(user.id)}`;
+  const assignees = (team.data?.users || []).filter((member) => ['AGENT', 'ADMIN'].includes(member.role));
+  const metrics = [
+    {
+      label: admin ? 'Без исполнителя' : 'Мои открытые заявки',
+      caption: admin ? 'Ждут назначения' : 'Назначены вам',
+      value: attention.primary,
+      href: admin ? '/tickets?statusGroup=open&assignedToId=none' : `/tickets?statusGroup=open${own}`,
+      Icon: admin ? UserX : Ticket,
+      tone: 'amber',
+    },
+    {
+      label: 'Срочные',
+      caption: 'Открытые со срочным приоритетом',
+      value: attention.urgent,
+      href: `/tickets?statusGroup=open&priority=URGENT${own}`,
+      Icon: Flame,
+      tone: 'red',
+    },
+    {
+      label: 'В ожидании',
+      caption: 'Ждут ответа или действия',
+      value: attention.waiting,
+      href: `/tickets?status=WAITING${own}`,
+      Icon: Hourglass,
+      tone: 'purple',
+    },
+  ];
+  async function assign(ticket, assignedToId) {
+    setBusy(String(ticket.id));
+    setFailure('');
+    try {
+      await request(`/api/tickets/${ticket.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignedToId: assignedToId || null }),
+      });
+      onChanged();
+    } catch (error) {
+      setFailure(error.message);
+    } finally {
+      setBusy('');
+    }
+  }
+  return (
+    <section className="panel attention-panel" aria-labelledby="attention-title">
+      <div className="panel-heading">
+        <div>
+          <h2 id="attention-title">
+            <CircleAlert size={18} /> {t('Требует внимания')}
+          </h2>
+          <p>{t(admin ? 'Неназначенные и срочные заявки — назначьте исполнителя прямо здесь' : 'Ваши открытые заявки, самые срочные сверху')}</p>
+        </div>
+        <NewButton />
+      </div>
+      <div className="attention-metrics">
+        {metrics.map(({ label, caption, value, href, Icon, tone }) => (
+          <Link key={label} href={href} className={`attention-metric tone-${tone}${value ? '' : ' is-clear'}`}>
+            <span className="attention-metric-icon"><Icon size={18} /></span>
+            <span className="attention-metric-text">
+              <strong>{value.toLocaleString(locale)}</strong>
+              <span>{t(label)}</span>
+              <small>{t(caption)}</small>
+            </span>
+            <ArrowRight size={15} className="attention-metric-arrow" />
+          </Link>
+        ))}
+      </div>
+      <Message>{failure}</Message>
+      {attention.tickets.length ? (
+        <ul className="attention-list">
+          {attention.tickets.map((ticket) => (
+            <li key={ticket.id}>
+              <Link href={`/tickets/${ticket.id}`} className="attention-ticket">
+                <span className="ticket-id">SD-{String(ticket.id).padStart(4, '0')}</span>
+                <span className="attention-ticket-title">{ticket.title}</span>
+                <span className="attention-ticket-meta">
+                  {categoryLabel(ticket.category?.name, t)} · {t('создана {date}', { date: date(ticket.createdAt, locale) })}
+                </span>
+              </Link>
+              <Priority value={ticket.priority} />
+              <Status value={ticket.status} />
+              {admin ? (
+                <select
+                  className="attention-assign"
+                  aria-label={t('Назначить исполнителя для {id}', { id: `SD-${String(ticket.id).padStart(4, '0')}` })}
+                  value={ticket.assignedToId || ''}
+                  disabled={!!busy || team.loading || !!team.error}
+                  onChange={(event) => assign(ticket, event.target.value)}
+                >
+                  <option value="">{t(busy === String(ticket.id) ? 'Сохраняем…' : 'Назначить…')}</option>
+                  {assignees.map((member) => (
+                    <option key={member.id} value={member.id}>{member.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <UserName user={ticket.assignedTo} />
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="attention-empty">
+          <CircleCheck size={18} />
+          {t(admin ? 'Неназначенных и срочных заявок нет — всё под контролем.' : 'Открытых заявок нет — отличная работа.')}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function DashboardPage() {
   const { t, locale } = useLanguage();
   const today = useCurrentDate();
   const user = useCurrentUser();
   const { data, loading, error, reload } = useResource('/api/dashboard');
+  const staff = user.role === 'ADMIN' || user.role === 'AGENT';
   return (
     <>
       <div className="dashboard-welcome">
@@ -829,6 +972,7 @@ export function DashboardPage() {
           {formatLongDate(today, locale)}
         </span>
       </div>
+      {!staff && (
       <section className="hero hero--spatial">
         <div className="hero-content">
           <span className="hero-kicker">
@@ -846,12 +990,14 @@ export function DashboardPage() {
         </div>
         <SupportScene />
       </section>
-      {loading ? (
+      )}
+      {loading && !data ? (
         <Loading />
       ) : error ? (
         <ResourceError error={error} retry={reload} />
       ) : (
         <>
+          {data.attention && <AttentionPanel attention={data.attention} onChanged={reload} />}
           <div className="section-line">
             <h2>{t('Пульс поддержки')}</h2>
             <span>
@@ -1767,6 +1913,113 @@ export function TicketDetailPage({ id, created = false }) {
   );
 }
 
+// Readable temporary password without look-alike characters (0/O, 1/l/I).
+function temporaryPassword(length = 14) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint32Array(length));
+  return Array.from(bytes, (value) => alphabet[value % alphabet.length]).join('');
+}
+
+const EMPTY_MEMBER = Object.freeze({ name: '', email: '', role: 'EMPLOYEE', password: '' });
+
+function AddMemberDialog({ onClose, onCreated }) {
+  const { t } = useLanguage();
+  const ref = useRef(null);
+  const [values, setValues] = useState(() => ({ ...EMPTY_MEMBER, password: temporaryPassword() }));
+  const [showPassword, setShowPassword] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState('');
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+  const change = (event) => setValues((old) => ({ ...old, [event.target.name]: event.target.value }));
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setFailure('');
+    try {
+      const { user } = await request('/api/team', { method: 'POST', body: JSON.stringify(values) });
+      onCreated(user);
+    } catch (error) {
+      setFailure(error.message);
+      setBusy(false);
+    }
+  }
+  return (
+    <dialog
+      className="confirm-dialog member-dialog"
+      ref={ref}
+      aria-labelledby="member-dialog-title"
+      onCancel={(event) => {
+        if (busy) event.preventDefault();
+        else onClose();
+      }}
+    >
+      <div className="dialog-icon dialog-icon-accent">
+        <UserPlus size={24} />
+      </div>
+      <h2 id="member-dialog-title">{t('Новый сотрудник')}</h2>
+      <p>{t('Аккаунт создаётся сразу. Передайте email и временный пароль сотруднику лично — он сможет сменить пароль в профиле.')}</p>
+      <form onSubmit={submit}>
+        <fieldset disabled={busy}>
+          <label className="field">
+            <span>{t('Имя и фамилия')}</span>
+            <input name="name" value={values.name} onChange={change} required minLength={2} maxLength={100} autoComplete="off" autoFocus />
+          </label>
+          <label className="field">
+            <span>{t('Рабочая почта')}</span>
+            <input name="email" type="email" value={values.email} onChange={change} required maxLength={254} autoComplete="off" placeholder={t('you@company.ru')} />
+          </label>
+          <label className="field">
+            <span>{t('Роль')}</span>
+            <select name="role" value={values.role} onChange={change}>
+              {Object.entries(roleLabels).map(([key, label]) => (
+                <option key={key} value={key}>{t(label)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>{t('Временный пароль')}</span>
+            <span className="member-password">
+              <input
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={values.password}
+                onChange={change}
+                required
+                minLength={12}
+                maxLength={128}
+                autoComplete="new-password"
+                spellCheck={false}
+              />
+              <button type="button" className="button secondary small icon-only" aria-label={t(showPassword ? 'Скрыть пароль' : 'Показать пароль')} onClick={() => setShowPassword((value) => !value)}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+              <button type="button" className="button secondary small" onClick={() => setValues((old) => ({ ...old, password: temporaryPassword() }))}>
+                <KeyRound size={15} /> {t('Сгенерировать')}
+              </button>
+            </span>
+            <small>{t('Не менее 12 символов.')}</small>
+          </label>
+        </fieldset>
+        <Message>{failure}</Message>
+        <div className="form-actions">
+          <button type="button" className="button secondary" disabled={busy} onClick={onClose}>
+            {t('Отмена')}
+          </button>
+          <button className="button primary" disabled={busy}>
+            {busy ? t('Создаём…') : t('Создать аккаунт')}
+          </button>
+        </div>
+      </form>
+    </dialog>
+  );
+}
+
 export function TeamPage() {
   const { t, locale } = useLanguage();
   const current = useCurrentUser();
@@ -1774,11 +2027,14 @@ export function TeamPage() {
   const [busy, setBusy] = useState('');
   const [failure, setFailure] = useState('');
   const [success, setSuccess] = useState('');
+  const [created, setCreated] = useState('');
+  const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   async function roleChange(user, role) {
     setBusy(user.id);
     setFailure('');
     setSuccess('');
+    setCreated('');
     try {
       await request(`/api/team/${user.id}`, {
         method: 'PATCH',
@@ -1802,12 +2058,32 @@ export function TeamPage() {
         eyebrow="ЛЮДИ, КОТОРЫЕ ПОМОГАЮТ"
         title="Команда и сотрудники"
         description="Управляйте ролями и распределяйте нагрузку команды поддержки."
-      />
+      >
+        <button className="button primary" onClick={() => { setFailure(''); setAdding(true); }}>
+          <UserPlus size={17} /> {t('Добавить сотрудника')}
+        </button>
+      </PageTitle>
       <Message>{failure}</Message>
       {success && (
         <Message success values={{ name: success }}>
           {'Роль пользователя {name} обновлена.'}
         </Message>
+      )}
+      {created && (
+        <Message success values={{ name: created }}>
+          {'Сотрудник {name} добавлен. Передайте ему email и временный пароль лично.'}
+        </Message>
+      )}
+      {adding && (
+        <AddMemberDialog
+          onClose={() => setAdding(false)}
+          onCreated={(user) => {
+            setAdding(false);
+            setSuccess('');
+            setCreated(user.name);
+            reload();
+          }}
+        />
       )}
       <section className="panel">
         <div className="panel-heading">
@@ -1901,6 +2177,130 @@ export function TeamPage() {
   );
 }
 
+function formatDuration(hours, t, locale) {
+  if (hours == null) return '—';
+  const number = (value) => value.toLocaleString(locale, { maximumFractionDigits: 1 });
+  if (hours < 1) return t('{value} мин', { value: Math.max(1, Math.round(hours * 60)).toLocaleString(locale) });
+  if (hours < 48) return t('{value} ч', { value: number(hours) });
+  return t('{value} дн.', { value: number(hours / 24) });
+}
+
+function ReportKpis({ data }) {
+  const { t, locale } = useLanguage();
+  const cards = [
+    {
+      label: 'Среднее время решения',
+      value: formatDuration(data.resolutionHours, t, locale),
+      caption: t('По {count} решённым заявкам', { count: data.resolvedTotal.toLocaleString(locale) }),
+      Icon: Timer,
+      color: 'blue',
+      href: '/tickets?statusGroup=resolved',
+    },
+    {
+      label: 'Открытые заявки',
+      value: data.counts.open.toLocaleString(locale),
+      caption: t('Новые, в работе и в ожидании'),
+      Icon: Inbox,
+      color: 'purple',
+      href: '/tickets?statusGroup=open',
+    },
+    {
+      label: 'Без исполнителя',
+      value: data.unassignedOpen.toLocaleString(locale),
+      caption: t(data.unassignedOpen ? 'Нужно назначить исполнителя' : 'Все открытые заявки назначены'),
+      Icon: UserX,
+      color: 'amber',
+      href: '/tickets?statusGroup=open&assignedToId=none',
+    },
+    {
+      label: 'Решено за 30 дней',
+      value: data.resolvedLast30Days.toLocaleString(locale),
+      caption: t('Решённые и закрытые за месяц'),
+      Icon: CircleCheck,
+      color: 'teal',
+      href: '/tickets?statusGroup=resolved',
+    },
+  ];
+  return (
+    <div className="stats-grid">
+      {cards.map(({ label, value, caption, Icon, color, href }) => (
+        <Link className="stat-card stat-card-link" key={label} href={href}>
+          <div className="stat-top">
+            <span>{t(label)}</span>
+            <span className={`stat-icon ${color}`}><Icon size={21} /></span>
+          </div>
+          <strong>{value}</strong>
+          <p><span className={`stat-dot ${color}`} />{caption}</p>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function CategoryBreakdown({ categories = [] }) {
+  const { t, locale } = useLanguage();
+  const max = Math.max(1, ...categories.map((category) => category.total));
+  return categories.length ? (
+    <ul className="category-breakdown">
+      {categories.map((category) => (
+        <li key={category.id}>
+          <Link href={`/tickets?categoryId=${encodeURIComponent(category.id)}`}>
+            <span className="category-breakdown-name">{categoryLabel(category.name, t)}</span>
+            <span className="category-breakdown-numbers">
+              <strong>{category.total.toLocaleString(locale)}</strong>
+              <small>{t('открыто {count}', { count: category.open.toLocaleString(locale) })}</small>
+            </span>
+            <span className="category-breakdown-bar" aria-hidden="true">
+              <i style={{ width: `${(category.total / max) * 100}%` }} />
+              <b style={{ width: `${(category.open / max) * 100}%` }} />
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <Empty title="Категорий пока нет" text="Добавьте категории, чтобы видеть распределение заявок." action={false} />
+  );
+}
+
+function AgentPerformance({ agents = [] }) {
+  const { t, locale } = useLanguage();
+  return agents.length ? (
+    <div className="table-scroll">
+      <table className="team-table agent-table">
+        <thead>
+          <tr>
+            <th>{t('Исполнитель')}</th>
+            <th>{t('Открыто')}</th>
+            <th>{t('Решено')}</th>
+            <th>{t('Среднее время')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {agents.map((agent) => (
+            <tr key={agent.id}>
+              <td>
+                <Link className="team-user" href={`/tickets?assignedToId=${encodeURIComponent(agent.id)}`}>
+                  <span className="avatar">{initials(agent.name)}</span>
+                  <div>
+                    <strong>{agent.name}</strong>
+                    <span>{t(roleLabels[agent.role])}</span>
+                  </div>
+                </Link>
+              </td>
+              <td><span className="count-pill">{agent.openAssignedCount.toLocaleString(locale)}</span></td>
+              <td>{agent.resolvedCount.toLocaleString(locale)}</td>
+              <td>{formatDuration(agent.resolutionHours, t, locale)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ) : (
+    <Empty title="Исполнителей пока нет" text="Назначьте роль исполнителя на странице сотрудников." action={false} />
+  );
+}
+
 export function ReportsPage() {
   const { t, locale } = useLanguage();
   const { data, loading, error, reload } = useResource('/api/reports');
@@ -1910,7 +2310,11 @@ export function ReportsPage() {
         eyebrow="ПРОЗРАЧНОСТЬ В КАЖДОЙ ЦИФРЕ"
         title="Отчёты и аналитика"
         description="Реальная картина работы поддержки по данным вашей команды."
-      />
+      >
+        <a className="button secondary" href="/api/reports/export" download>
+          <Download size={17} /> {t('Выгрузить заявки (CSV)')}
+        </a>
+      </PageTitle>
       <div className="report-info">
         <span>
           <CalendarDays size={17} /> {t('Общая статистика за всё время')}
@@ -1919,13 +2323,33 @@ export function ReportsPage() {
           <span className="live-dot" /> {t('Данные из системы')}
         </span>
       </div>
-      {loading ? (
+      {loading && !data ? (
         <Loading />
       ) : error ? (
         <ResourceError error={error} retry={reload} />
       ) : (
         <>
-          <Stats counts={data.counts} />
+          <ReportKpis data={data} />
+          <div className="dashboard-charts">
+            <section className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>{t('Заявки по категориям')}</h2>
+                  <p>{t('Всего и сколько ещё открыто')}</p>
+                </div>
+              </div>
+              <CategoryBreakdown categories={data.categories} />
+            </section>
+            <section className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>{t('Работа исполнителей')}</h2>
+                  <p>{t('Нагрузка, решённые заявки и среднее время решения')}</p>
+                </div>
+              </div>
+              <AgentPerformance agents={data.agents} />
+            </section>
+          </div>
           <div className="dashboard-charts">
             <section className="panel">
               <div className="panel-heading">
@@ -1988,6 +2412,198 @@ export function ReportsPage() {
           <TicketTrendPanel initialData={data} endpoint="/api/reports" title="Динамика работы поддержки" />
         </>
       )}
+    </>
+  );
+}
+
+function CategoryRow({ category, busy, onRename, onDelete }) {
+  const { t, locale } = useLanguage();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(category.name);
+  const used = category.ticketCount > 0;
+  async function save(event) {
+    event.preventDefault();
+    if (name.trim() === category.name) {
+      setEditing(false);
+      return;
+    }
+    if (await onRename(category, name.trim())) setEditing(false);
+  }
+  return (
+    <tr>
+      <td>
+        {editing ? (
+          <form className="category-rename" onSubmit={save}>
+            <input
+              aria-label={t('Новое название категории')}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              minLength={2}
+              maxLength={100}
+              required
+              autoFocus
+              disabled={busy}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setName(category.name);
+                  setEditing(false);
+                }
+              }}
+            />
+            <button className="button primary small" disabled={busy}>
+              <Save size={15} /> {t('Сохранить')}
+            </button>
+            <button type="button" className="button secondary small" disabled={busy} onClick={() => { setName(category.name); setEditing(false); }}>
+              {t('Отмена')}
+            </button>
+          </form>
+        ) : (
+          <span className="category-name">
+            <span className="category-name-icon"><Tags size={15} /></span>
+            {categoryLabel(category.name, t)}
+          </span>
+        )}
+      </td>
+      <td>
+        {used ? (
+          <Link className="text-link" href={`/tickets?categoryId=${encodeURIComponent(category.id)}`}>
+            {category.ticketCount.toLocaleString(locale)}
+          </Link>
+        ) : (
+          <span className="muted">0</span>
+        )}
+      </td>
+      <td>
+        {!editing && (
+          <div className="category-actions">
+            <button
+              className="button secondary small"
+              disabled={busy}
+              onClick={() => { setName(category.name); setEditing(true); }}
+            >
+              <Pencil size={14} /> {t('Переименовать')}
+            </button>
+            <button
+              className="button icon-button danger-ghost small"
+              disabled={busy || used}
+              title={used ? t('Категория используется в заявках') : t('Удалить категорию')}
+              aria-label={t('Удалить категорию {name}', { name: categoryLabel(category.name, t) })}
+              onClick={() => onDelete(category)}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+export function CategoriesPage() {
+  const { t, locale } = useLanguage();
+  const { data, loading, error, reload } = useResource('/api/categories?usage=1');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState('');
+  const [success, setSuccess] = useState({ text: '', values: undefined });
+  async function run(operation, message, values) {
+    setBusy(true);
+    setFailure('');
+    setSuccess({ text: '', values: undefined });
+    try {
+      await operation();
+      setSuccess({ text: message, values });
+      reload();
+      return true;
+    } catch (error) {
+      setFailure(error.message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function add(event) {
+    event.preventDefault();
+    const value = name.trim();
+    if (await run(
+      () => request('/api/categories', { method: 'POST', body: JSON.stringify({ name: value }) }),
+      'Категория «{name}» добавлена.',
+      { name: value },
+    )) setName('');
+  }
+  const rename = (category, value) => run(
+    () => request(`/api/categories/${category.id}`, { method: 'PATCH', body: JSON.stringify({ name: value }) }),
+    'Категория переименована в «{name}».',
+    { name: value },
+  );
+  const remove = (category) => {
+    if (!window.confirm(t('Удалить категорию «{name}»?', { name: categoryLabel(category.name, t) }))) return;
+    run(
+      () => request(`/api/categories/${category.id}`, { method: 'DELETE' }),
+      'Категория «{name}» удалена.',
+      { name: categoryLabel(category.name, t) },
+    );
+  };
+  const categories = data?.categories || [];
+  return (
+    <>
+      <PageTitle
+        eyebrow="СПРАВОЧНИКИ"
+        title="Категории заявок"
+        description="Категории помогают сотрудникам точнее описать проблему, а вам — видеть, где чаще всего нужна помощь."
+      />
+      <Message>{failure}</Message>
+      <Message success values={success.values}>{success.text}</Message>
+      <section className="panel">
+        <div className="panel-heading">
+          <h2>
+            {t('Категории')}{' '}
+            <span className="count-pill">{categories.length.toLocaleString(locale)}</span>
+          </h2>
+          <form className="category-add" onSubmit={add}>
+            <input
+              aria-label={t('Название новой категории')}
+              placeholder={t('Например, Принтеры и печать')}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              minLength={2}
+              maxLength={100}
+              required
+              disabled={busy}
+            />
+            <button className="button primary" disabled={busy || name.trim().length < 2}>
+              <Plus size={16} /> {t('Добавить')}
+            </button>
+          </form>
+        </div>
+        {loading && !data ? (
+          <Loading />
+        ) : error ? (
+          <ResourceError error={error} retry={reload} />
+        ) : categories.length ? (
+          <div className="table-scroll">
+            <table className="team-table category-table">
+              <thead>
+                <tr>
+                  <th>{t('Категория')}</th>
+                  <th>{t('Заявок')}</th>
+                  <th><span className="sr-only">{t('Действия')}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map((category) => (
+                  <CategoryRow key={category.id} category={category} busy={busy} onRename={rename} onDelete={remove} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty title="Категорий пока нет" text="Добавьте первую категорию, чтобы сотрудники могли создавать заявки." action={false} />
+        )}
+      </section>
+      <p className="page-note">
+        <ShieldCheck size={15} /> {t('Категорию, в которой есть заявки, удалить нельзя — сначала переведите заявки в другую категорию.')}
+      </p>
     </>
   );
 }
