@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { Bell, CheckCheck, FilePlus2, MessageSquare, RefreshCw, RotateCcw } from 'lucide-react';
 import { useLanguage } from './language-provider';
 import { formatDate } from '../lib/date-format.js';
+import { useNotificationReadState } from './use-notification-read-state';
 import './notification-bell.css';
 
 const labels = {
@@ -13,15 +14,6 @@ const labels = {
   ticket_updated: 'Заявка обновлена',
   comment_added: 'Новый комментарий',
 };
-
-function storedReadIds(key, fallback = []) {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || '[]');
-    return Array.isArray(value) ? value.filter((id) => typeof id === 'string').slice(-500) : [];
-  } catch {
-    return fallback;
-  }
-}
 
 export default function NotificationBell({ user, onNavigate }) {
   const { t, locale } = useLanguage();
@@ -31,13 +23,12 @@ export default function NotificationBell({ user, onNavigate }) {
   const [open, setOpen] = useState(false);
   const [onlyNew, setOnlyNew] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [readIds, setReadIds] = useState([]);
+  const { readIds, markRead, markUnread } = useNotificationReadState(user.id);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
-  const readKey = `servicedesk.notifications.read.${user.id}`;
   const unread = notifications.filter((item) => !readIds.includes(item.id)).length;
   const visibleNotifications = onlyNew
     ? notifications.filter((item) => item.type === 'ticket_created' && item.status === 'NEW')
@@ -56,8 +47,7 @@ export default function NotificationBell({ user, onNavigate }) {
 
   useEffect(() => {
     setNotifications([]);
-    setReadIds(storedReadIds(readKey));
-  }, [readKey, user.role]);
+  }, [user.id, user.role]);
 
   useEffect(() => {
     let active = true;
@@ -123,41 +113,15 @@ export default function NotificationBell({ user, onNavigate }) {
     function otherMenu(event) {
       if (event.detail !== 'notifications') setOpen(false);
     }
-    function syncRead(event) {
-      if (event.key === readKey || event.key === null) setReadIds(storedReadIds(readKey));
-    }
     document.addEventListener('pointerdown', outside);
     document.addEventListener('keydown', escape);
     window.addEventListener('servicedesk:header-menu', otherMenu);
-    window.addEventListener('storage', syncRead);
     return () => {
       document.removeEventListener('pointerdown', outside);
       document.removeEventListener('keydown', escape);
       window.removeEventListener('servicedesk:header-menu', otherMenu);
-      window.removeEventListener('storage', syncRead);
     };
-  }, [open, readKey]);
-
-  function markRead(ids) {
-    const next = [...new Set([...readIds, ...ids])].slice(-500);
-    setReadIds(next);
-    try {
-      window.localStorage.setItem(readKey, JSON.stringify(next));
-    } catch {
-      // Reading remains available when browser storage is blocked.
-    }
-  }
-
-  function markUnread(ids) {
-    const selectedIds = new Set(ids);
-    const next = storedReadIds(readKey, readIds).filter((id) => !selectedIds.has(id));
-    setReadIds(next);
-    try {
-      window.localStorage.setItem(readKey, JSON.stringify(next));
-    } catch {
-      // Keep the local view usable when browser storage is blocked.
-    }
-  }
+  }, [open]);
 
   function toggle() {
     if (!open) {
@@ -257,6 +221,13 @@ export default function NotificationBell({ user, onNavigate }) {
               onClick={() => { setOpen(false); onNavigate?.(); }}
             >
               {t('Все новые заявки')}
+            </Link>
+            <Link
+              href="/notifications"
+              className="notification-view-all"
+              onClick={() => { setOpen(false); onNavigate?.(); }}
+            >
+              {t('Посмотреть все уведомления')}
             </Link>
             <p className="notification-footnote">{t('Последние события по доступным вам заявкам')}</p>
           </div>

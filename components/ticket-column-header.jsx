@@ -70,7 +70,7 @@ export function TicketColumnHeader({
   useLayoutEffect(() => {
     if (!open) return;
     function reposition(event) {
-      if (event?.target && panelRef.current?.contains(event.target)) return;
+      if (event?.target instanceof Node && panelRef.current?.contains(event.target)) return;
       const anchor = triggerRef.current?.getBoundingClientRect();
       const panel = panelRef.current;
       if (!anchor || !panel) return;

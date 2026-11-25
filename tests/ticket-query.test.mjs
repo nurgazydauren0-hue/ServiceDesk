@@ -95,10 +95,38 @@ test('группа решённых не ослабляет точный ста�
   assert.deepEqual(contradictory.AND[0], { OR: [{ assignedToId: agent.id }, { createdById: agent.id }] });
 });
 
+test('выбранный исполнитель сужает доступные заявки вместе с ролью до подсчёта и пагинации', () => {
+  for (const user of [admin, agent, employee]) {
+    const { findMany, count } = query(user, {
+      assignedToId: ' agent-2 ', assigneeRole: 'AGENT', status: 'IN_PROGRESS',
+      page: '3', pageSize: '5',
+    });
+    const scope = user.role === 'ADMIN' ? {} : user.role === 'AGENT'
+      ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] }
+      : { createdById: user.id };
+    assert.deepEqual(findMany.where.AND, [
+      scope,
+      { status: 'IN_PROGRESS' },
+      { assignedTo: { is: { role: 'AGENT' } } },
+      { assignedToId: 'agent-2' },
+    ]);
+    assert.equal(count.where, findMany.where);
+    assert.equal(findMany.skip, 10);
+    assert.equal(findMany.take, 5);
+    assert.equal('skip' in count, false);
+    assert.equal('take' in count, false);
+  }
+  assert.deepEqual(query(admin, { assignedToId: 'agent-2' }).findMany.where.AND, [
+    {}, { assignedToId: 'agent-2' },
+  ]);
+  assert.deepEqual(query(admin, { assignedToId: '' }), query(admin));
+});
+
 test('схема отклоняет неизвестные поля сортировки и слишком длинную категорию', () => {
   for (const values of [
     { sort: 'passwordHash_asc' }, { sort: 'category_ascending' },
     { sort: 'title_asc,id_desc' }, { categoryId: 'x'.repeat(65) },
     { statusGroup: 'all' }, { assigneeRole: 'OWNER' },
+    { assignedToId: 'x'.repeat(65) }, { assignedToId: '   ' },
   ]) assert.throws(() => query(admin, values), (error) => error.status === 400);
 });

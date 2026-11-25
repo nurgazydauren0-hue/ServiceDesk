@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildNotificationEvents, NOTIFICATION_LIMIT } from '../lib/notification-events.js';
-import { getNotifications } from '../lib/notifications.js';
+import {
+  getNotifications,
+  getNotificationPage,
+  parseNotificationArchiveParams,
+  NOTIFICATION_PAGE_SIZE,
+  NOTIFICATION_MAX_PAGE,
+} from '../lib/notifications.js';
 
 const now = new Date('2026-11-05T12:00:00.000Z');
 const since = new Date('2026-10-06T12:00:00.000Z');
@@ -125,4 +131,149 @@ test('загрузка ленты делает три ограниченных �
     assert.equal(calls[2][1].select.content, undefined);
     assert.equal(calls[0][1].select.description, undefined);
   }
+});
+
+function archiveDb(tickets, comments = [], calls = []) {
+  const field = Symbol('Ticket.createdAt');
+  const ordered = (rows, orderBy, take) => rows.toSorted((a, b) => {
+    for (const order of orderBy) {
+      const key = Object.keys(order)[0];
+      const direction = order[key] === 'desc' ? -1 : 1;
+      const left = a[key] instanceof Date ? a[key].getTime() : a[key];
+      const right = b[key] instanceof Date ? b[key].getTime() : b[key];
+      if (left !== right) return (left > right ? 1 : -1) * direction;
+    }
+    return 0;
+  }).slice(0, take);
+  return {
+    ticket: {
+      fields: { createdAt: field },
+      async findMany(query) {
+        calls.push(['ticket', query]);
+        const condition = query.where.AND.at(-1);
+        const key = condition.updatedAt ? 'updatedAt' : 'createdAt';
+        const range = condition[key];
+        if (key === 'updatedAt') assert.equal(range.gt, field);
+        const rows = tickets.filter((row) => row[key] <= range.lte &&
+          (key !== 'updatedAt' || row.updatedAt > row.createdAt));
+        return ordered(rows, query.orderBy, query.take);
+      },
+    },
+    comment: {
+      async findMany(query) {
+        calls.push(['comment', query]);
+        const range = query.where.AND.at(-1).createdAt;
+        const excludedAuthor = query.where.AND[1].authorId.not;
+        return ordered(comments.filter((row) => row.createdAt <= range.lte &&
+          row.authorId !== excludedAuthor), query.orderBy, query.take);
+      },
+    },
+  };
+}
+
+test('архив содержит старые события сверх лимита колокольчика и делится на страницы без потерь', async () => {
+  const date = new Date('2025-01-01T10:00:00Z');
+  const tickets = Array.from({ length: 51 }, (_, index) => ticket(index + 1, {
+    createdAt: date, updatedAt: date,
+  }));
+  const db = archiveDb(tickets);
+  const pages = await Promise.all([1, 2, 3].map((page) => getNotificationPage(admin, { page, db, now })));
+  assert.deepEqual(pages.map((page) => page.notifications.length), [20, 20, 11]);
+  assert.deepEqual(pages.map((page) => page.hasMore), [true, true, false]);
+  assert.ok(pages.every((page) => page.pageSize === NOTIFICATION_PAGE_SIZE && page.since === null));
+  const events = pages.flatMap((page) => page.notifications);
+  assert.deepEqual(events.map((event) => event.ticketId), Array.from({ length: 51 }, (_, index) => 51 - index));
+  assert.equal(new Set(events.map((event) => event.id)).size, 51);
+  assert.deepEqual(feed(admin, { createdTickets: tickets }), []);
+});
+
+test('архив смешивает комментарии и обновления с одинаковыми датами в стабильном порядке', async () => {
+  const date = new Date('2026-11-01T10:00:00Z');
+  const tickets = Array.from({ length: 12 }, (_, index) => ticket(index + 1, {
+    updatedAt: new Date('2026-11-02T10:00:00Z'),
+  }));
+  const comments = Array.from({ length: 35 }, (_, index) => ({
+    id: `comment-${String(index + 1).padStart(3, '0')}`,
+    ticketId: (index % tickets.length) + 1,
+    ticket: tickets[index % tickets.length],
+    authorId: employee.id,
+    author: { name: 'Employee' },
+    createdAt: date,
+  }));
+  const db = archiveDb([...tickets].reverse(), [...comments].reverse());
+  const result = [];
+  let page = 1;
+  let hasMore = true;
+  while (hasMore) {
+    const response = await getNotificationPage(admin, { db, now, page });
+    result.push(...response.notifications);
+    hasMore = response.hasMore;
+    page += 1;
+  }
+  assert.equal(result.length, 59);
+  assert.equal(new Set(result.map((event) => event.id)).size, 59);
+  assert.deepEqual(result.slice(0, 12).map((event) => event.type), Array(12).fill('ticket_updated'));
+  for (let i = 1; i < result.length; i += 1) {
+    const previous = result[i - 1];
+    const current = result[i];
+    assert.ok(previous.createdAt > current.createdAt ||
+      (previous.createdAt === current.createdAt && previous.ticketId > current.ticketId) ||
+      (previous.createdAt === current.createdAt && previous.ticketId === current.ticketId && previous.id > current.id));
+  }
+});
+
+test('архив использует границу первой страницы и не сдвигает страницы из-за новых событий', async () => {
+  const tickets = Array.from({ length: 25 }, (_, index) => ticket(index + 1));
+  const db = archiveDb(tickets);
+  const first = await getNotificationPage(admin, { db, now });
+  tickets.push(ticket(99, { createdAt: new Date('2026-11-06T10:00:00Z') }));
+  const params = parseNotificationArchiveParams(new URLSearchParams({ scope: 'all', page: '2', asOf: first.generatedAt }), {
+    now: new Date('2026-11-07T00:00:00Z'),
+  });
+  const second = await getNotificationPage(admin, { ...params, db });
+  assert.equal(second.generatedAt, first.generatedAt);
+  assert.deepEqual(second.notifications.map((event) => event.ticketId), [5, 4, 3, 2, 1]);
+  assert.equal(second.hasMore, false);
+});
+
+test('все запросы архива ограничены ролью, а неизменённые заявки не занимают места обновлений', async () => {
+  for (const user of [admin, agent, employee]) {
+    const calls = [];
+    const unchanged = Array.from({ length: 80 }, (_, index) => ticket(index + 1));
+    const changed = ticket(100, { createdAt: new Date('2025-01-01T00:00:00Z'), updatedAt: new Date('2025-01-02T00:00:00Z') });
+    const db = archiveDb([...unchanged, changed], [], calls);
+    await getNotificationPage(user, { page: 2, db, now });
+    assert.equal(calls.length, 3);
+    const scope = user.role === 'ADMIN' ? {} : user.role === 'AGENT'
+      ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] }
+      : { createdById: user.id };
+    assert.deepEqual(calls[0][1].where.AND[0], scope);
+    assert.deepEqual(calls[1][1].where.AND[0], scope);
+    assert.deepEqual(calls[2][1].where.AND[0], { ticket: { is: scope } });
+    assert.deepEqual(calls[2][1].where.AND[1], { authorId: { not: user.id } });
+    for (const [, query] of calls) {
+      assert.equal(query.take, 41);
+      assert.equal('include' in query, false);
+      assert.equal(query.select.description, undefined);
+      assert.equal(query.select.passwordHash, undefined);
+      assert.equal(query.select.content, undefined);
+    }
+  }
+});
+
+test('архив отклоняет недопустимые страницы и даты до обращения к базе', async () => {
+  assert.equal(parseNotificationArchiveParams(new URLSearchParams()), null);
+  assert.deepEqual(parseNotificationArchiveParams(new URLSearchParams('scope=all')), { page: 1 });
+  for (const query of [
+    'scope=unknown', 'page=1', 'scope=all&page=0', 'scope=all&page=-1',
+    'scope=all&page=01', 'scope=all&page=1.5', 'scope=all&page=1001',
+    'scope=all&page=1&page=2', 'scope=all&scope=all', 'scope=all&asOf=',
+    'scope=all&asOf=not-a-date', 'scope=all&asOf=2026-12-01T00:00:00.000Z',
+    'scope=all&asOf=2026-02-30T00:00:00.000Z',
+  ]) {
+    assert.throws(() => parseNotificationArchiveParams(new URLSearchParams(query), { now }),
+      (error) => error.status === 400, query);
+  }
+  for (const page of [0, -1, 1.2, NOTIFICATION_MAX_PAGE + 1, NaN])
+    await assert.rejects(getNotificationPage(admin, { page, db: {}, now }), (error) => error.status === 400);
 });

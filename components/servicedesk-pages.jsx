@@ -270,6 +270,9 @@ function UserName({ user }) {
 }
 function TicketTable({ tickets, compact = false, support = false, controls }) {
   const { t, locale } = useLanguage();
+  const filterUsers = (controls?.users || []).filter((member) =>
+    !controls.assigneeRole || member.role === controls.assigneeRole,
+  );
   function heading(label, sortAsc, sortDesc, children, filterActive = false) {
     if (!controls) return <th>{t(label)}</th>;
     return (
@@ -338,18 +341,43 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
               </label>
             ), !!(controls?.status || controls?.statusGroup))}
             {heading('Исполнитель', 'assignee_asc', 'assignee_desc', controls && (
+              <>
               <label className="ticket-column-filter-field">
                 <span>{t('Роль исполнителя')}</span>
                 <select
                   aria-label={t('Роль исполнителя')}
                   value={controls.assigneeRole}
-                  onChange={(event) => controls.update({ assigneeRole: event.target.value })}
+                  onChange={(event) => controls.update({ assigneeRole: event.target.value, assignedToId: '' })}
                 >
                   <option value="">{t('Все роли')}</option>
                   {Object.entries(roleLabels).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
                 </select>
               </label>
-            ), !!controls?.assigneeRole)}
+              <label className="ticket-column-filter-field">
+                <span>{t('Пользователь')}</span>
+                <select
+                  aria-label={t('Пользователь')}
+                  value={controls.assignedToId}
+                  disabled={controls.usersLoading || !!controls.usersError}
+                  onChange={(event) => controls.update({ assignedToId: event.target.value })}
+                >
+                  <option value="">{t(controls.usersLoading ? 'Загружаем данные…' : 'Все пользователи')}</option>
+                  {controls.assignedToId && !filterUsers.some((member) => member.id === controls.assignedToId) && (
+                    <option value={controls.assignedToId}>{t('Выбранный пользователь недоступен')}</option>
+                  )}
+                  {filterUsers.map((member) => (
+                    <option key={member.id} value={member.id}>{member.name} · {t(roleLabels[member.role])}</option>
+                  ))}
+                </select>
+              </label>
+              {controls.usersError && (
+                <div className="ticket-column-filter-error">
+                  <span role="alert">{t('Не удалось загрузить пользователей')}</span>
+                  <button type="button" className="text-link" onClick={controls.reloadUsers}>{t('Повторить попытку')}</button>
+                </div>
+              )}
+              </>
+            ), !!(controls?.assigneeRole || controls?.assignedToId))}
             {heading('Создана', 'oldest', 'newest')}
             <th>
               <span className="sr-only">{t('Открыть')}</span>
@@ -894,6 +922,7 @@ export function TicketsPage({ mine = false, support = false }) {
   const status = searchParams.get('status') ?? (support && !searchParams.get('statusGroup') ? 'NEW' : '');
   const priority = searchParams.get('priority') || '';
   const assigneeRole = searchParams.get('assigneeRole') || '';
+  const assignedToId = searchParams.get('assignedToId') || '';
   const categoryId = searchParams.get('categoryId') || '';
   const statusGroup = searchParams.get('statusGroup') || '';
   const onlyFavorites = searchParams.get('favorites') === '1';
@@ -937,6 +966,7 @@ export function TicketsPage({ mine = false, support = false }) {
     status,
     priority,
     assigneeRole,
+    assignedToId,
     categoryId,
     statusGroup,
     sort,
@@ -948,14 +978,19 @@ export function TicketsPage({ mine = false, support = false }) {
     `/api/tickets?${params}`,
   );
   const { data: categoryData } = useResource('/api/categories');
-  const filtered = !!(query || (!support && status) || priority || assigneeRole || categoryId || statusGroup || onlyFavorites);
+  const filterUsers = useResource('/api/tickets/filter-options');
+  const filtered = !!(query || (!support && status) || priority || assigneeRole || assignedToId || categoryId || statusGroup || onlyFavorites);
   function reset() {
     setSearch('');
     window.history.replaceState(null, '', pathname);
   }
   const controls = {
-    sort, status, priority, assigneeRole, categoryId, statusGroup,
+    sort, status, priority, assigneeRole, assignedToId, categoryId, statusGroup,
     categories: categoryData?.categories || [],
+    users: filterUsers.data?.users || [],
+    usersLoading: filterUsers.loading,
+    usersError: filterUsers.error,
+    reloadUsers: filterUsers.reload,
     update: updateFilters,
   };
   return (
