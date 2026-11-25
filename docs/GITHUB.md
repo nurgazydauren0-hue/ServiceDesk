@@ -19,7 +19,7 @@ git remote -v
 Если `origin` отсутствует:
 
 ```powershell
-git remote add origin https://github.com/YOUR_USERNAME/servicedesk.git
+git remote add origin https://github.com/nurgazydauren0-hue/ServiceDesk.git
 ```
 
 Если `origin` существует, сначала убедитесь, что адрес относится к вашему репозиторию; при необходимости обновите его через `git remote set-url origin ...`.
@@ -34,15 +34,15 @@ git commit -m "feat: implement ServiceDesk"
 git push -u origin YOUR_BRANCH
 ```
 
-Замените `YOUR_USERNAME` и `YOUR_BRANCH` своими значениями. Не используйте `push --force` как обычный способ исправления ошибок. При запросе входа пройдите штатную процедуру GitHub, не записывая токен в URL репозитория.
+Замените `YOUR_BRANCH` именем своей ветки (основная ветка — `main`). Не используйте `push --force` как обычный способ исправления ошибок. При запросе входа пройдите штатную процедуру GitHub, не записывая токен в URL репозитория.
 
 ## Работа второго участника
 
 Владелец приглашает напарника в настройках доступа репозитория. После принятия приглашения напарник клонирует проект и выполняет README, включая собственную PostgreSQL-базу и `.env`:
 
 ```powershell
-git clone https://github.com/YOUR_USERNAME/servicedesk.git
-cd servicedesk
+git clone https://github.com/nurgazydauren0-hue/ServiceDesk.git
+cd ServiceDesk
 npm ci
 ```
 
