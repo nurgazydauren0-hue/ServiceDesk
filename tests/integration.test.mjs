@@ -926,7 +926,14 @@ test(
         assert.equal(resolved.body.request.handledById, admin.id);
         assert.ok(resolved.body.request.resolvedAt);
         const support = await employee.client.request('/api/support');
-        assert.ok(support.body.escalations.mine.some((item) => item.id === requestId && item.response));
+        assert.ok(support.body.mine.some((item) => item.id === requestId && item.response));
+        // The support center page offers exactly the tickets the user may see.
+        assert.ok(support.body.tickets.some((item) => item.id === ticketId));
+        assert.equal((await stranger.client.request('/api/support')).body.tickets.some((item) => item.id === ticketId), false);
+        const adminView = await admin.client.request('/api/support');
+        assert.equal(adminView.body.role, 'ADMIN');
+        assert.ok(adminView.body.resolved.some((item) => item.id === requestId));
+        assert.equal(adminView.body.active.some((item) => item.id === requestId), false);
         // After an answer the author may write again.
         assert.equal(
           (await employee.client.json(path, 'POST', { type: 'QUESTION', message: 'Новый вопрос после ответа' })).response.status,
