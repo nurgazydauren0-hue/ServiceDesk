@@ -105,7 +105,7 @@ const builtInCategories = new Set([
   'Другое',
 ]);
 
-const categoryLabel = (name, t) => builtInCategories.has(name) ? t(name) : name;
+export const categoryLabel = (name, t) => builtInCategories.has(name) ? t(name) : name;
 
 export async function request(url, options = {}) {
   function notifyTicketChange() {
@@ -150,7 +150,7 @@ export async function request(url, options = {}) {
   notifyTicketChange();
   return data;
 }
-function useResource(url, version = 0) {
+export function useResource(url, version = 0) {
   const [state, setState] = useState({ data: null, loading: true, error: '' });
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
@@ -181,7 +181,7 @@ export function Message({ children, success = false, values }) {
     </div>
   ) : null;
 }
-function Loading() {
+export function Loading() {
   const { t } = useLanguage();
   return (
     <div className="loading-state" role="status">
@@ -190,7 +190,7 @@ function Loading() {
     </div>
   );
 }
-function ResourceError({ error, retry }) {
+export function ResourceError({ error, retry }) {
   const { t } = useLanguage();
   return (
     <div className="empty-state">
@@ -226,7 +226,7 @@ function Empty({
     </div>
   );
 }
-function PageTitle({ eyebrow, title, description, children }) {
+export function PageTitle({ eyebrow, title, description, children }) {
   const { t } = useLanguage();
   return (
     <div className="page-heading">
@@ -247,7 +247,7 @@ function NewButton() {
     </Link>
   );
 }
-function Status({ value }) {
+export function Status({ value }) {
   const { t } = useLanguage();
   return (
     <span className={`badge status-${value?.toLowerCase()}`}>
@@ -256,7 +256,7 @@ function Status({ value }) {
     </span>
   );
 }
-function Priority({ value }) {
+export function Priority({ value }) {
   const { t } = useLanguage();
   return (
     <span className={`priority priority-${value?.toLowerCase()}`}>
@@ -269,7 +269,7 @@ function Priority({ value }) {
     </span>
   );
 }
-function UserName({ user }) {
+export function UserName({ user }) {
   const { t } = useLanguage();
   return user ? (
     <span className="user-cell">
@@ -280,7 +280,7 @@ function UserName({ user }) {
     <span className="muted">{t('Не назначен')}</span>
   );
 }
-function TicketTable({ tickets, compact = false, support = false, controls }) {
+function TicketTable({ tickets, compact = false, controls }) {
   const { t, locale } = useLanguage();
   const filterUsers = (controls?.users || []).filter((member) =>
     !controls.assigneeRole || member.role === controls.assigneeRole,
@@ -310,9 +310,7 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
         <thead>
           <tr>
             {heading('Заявка', 'title_asc', 'title_desc')}
-            {!compact && (support
-              ? heading('Автор обращения', 'author_asc', 'author_desc')
-              : heading('Категория', 'category_asc', 'category_desc', controls && (
+            {!compact && heading('Категория', 'category_asc', 'category_desc', controls && (
                 <label className="ticket-column-filter-field">
                   <span>{t('Категория')}</span>
                   <select
@@ -326,7 +324,7 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
                     ))}
                   </select>
                 </label>
-              ), !!controls?.categoryId))}
+              ), !!controls?.categoryId)}
             {heading('Приоритет', 'priority_asc', 'priority_desc', controls && (
               <label className="ticket-column-filter-field">
                 <span>{t('Приоритет')}</span>
@@ -418,7 +416,7 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
                     <span>{ticket.title}</span>
                   </Link>
                 </div>
-                {(compact || support) && (
+                {compact && (
                   <span className="ticket-category">
                     {categoryLabel(ticket.category?.name, t)}
                   </span>
@@ -426,18 +424,9 @@ function TicketTable({ tickets, compact = false, support = false, controls }) {
               </td>
               {!compact && (
                 <td>
-                  {support ? (
-                    <div className="support-author">
-                      <UserName user={ticket.createdBy} />
-                      <span className="support-author-email">
-                        {ticket.createdBy?.email || '—'}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="category-label">
-                      {categoryLabel(ticket.category?.name, t) || '—'}
-                    </span>
-                  )}
+                  <span className="category-label">
+                    {categoryLabel(ticket.category?.name, t) || '—'}
+                  </span>
                 </td>
               )}
               <td>
@@ -1044,20 +1033,7 @@ export function DashboardPage() {
   );
 }
 
-const supportQueues = [
-  ['NEW', 'Новые'],
-  ['IN_PROGRESS', 'В работе'],
-  ['WAITING', 'Ожидание'],
-  ['RESOLVED', 'Решённые'],
-  ['CLOSED', 'Закрытые'],
-  ['', 'Все обращения'],
-];
-
-export function SupportPage() {
-  return <TicketsPage support />;
-}
-
-export function TicketsPage({ mine = false, support = false }) {
+export function TicketsPage({ mine = false }) {
   const { t, locale } = useLanguage();
   const user = useCurrentUser();
   const favorites = useTicketFavorites(user.id);
@@ -1065,14 +1041,14 @@ export function TicketsPage({ mine = false, support = false }) {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.toString();
   const query = searchParams.get('q') || '';
-  const status = searchParams.get('status') ?? (support && !searchParams.get('statusGroup') ? 'NEW' : '');
+  const status = searchParams.get('status') || '';
   const priority = searchParams.get('priority') || '';
   const assigneeRole = searchParams.get('assigneeRole') || '';
   const assignedToId = searchParams.get('assignedToId') || '';
   const categoryId = searchParams.get('categoryId') || '';
   const statusGroup = searchParams.get('statusGroup') || '';
   const onlyFavorites = searchParams.get('favorites') === '1';
-  const sort = searchParams.get('sort') || (support ? 'oldest' : 'newest');
+  const sort = searchParams.get('sort') || 'newest';
   const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
   const [search, setSearch] = useState(query);
   const previousFavoriteIds = useRef(null);
@@ -1081,8 +1057,7 @@ export function TicketsPage({ mine = false, support = false }) {
     // Merge with the latest URL even when another control changed this frame.
     const next = new URLSearchParams(window.location.search);
     for (const [key, value] of Object.entries(changes)) {
-      if (support && key === 'status' && value === '') next.set(key, '');
-      else if (value === '' || value == null || (key === 'page' && Number(value) === 1)) next.delete(key);
+      if (value === '' || value == null || (key === 'page' && Number(value) === 1)) next.delete(key);
       else next.set(key, String(value));
     }
     if (resetPage) next.delete('page');
@@ -1125,7 +1100,7 @@ export function TicketsPage({ mine = false, support = false }) {
   );
   const { data: categoryData } = useResource('/api/categories');
   const filterUsers = useResource('/api/tickets/filter-options');
-  const filtered = !!(query || (!support && status) || priority || assigneeRole || assignedToId || categoryId || statusGroup || onlyFavorites);
+  const filtered = !!(query || status || priority || assigneeRole || assignedToId || categoryId || statusGroup || onlyFavorites);
   function reset() {
     setSearch('');
     window.history.replaceState(null, '', pathname);
@@ -1142,51 +1117,17 @@ export function TicketsPage({ mine = false, support = false }) {
   return (
     <>
       <PageTitle
-        eyebrow={support ? 'СЛУЖБА ПОДДЕРЖКИ' : 'ЦЕНТР ОБРАЩЕНИЙ'}
-        title={
-          support
-            ? user.role === 'EMPLOYEE'
-              ? 'Мои обращения в поддержку'
-              : 'Обращения пользователей'
-            : 'Заявки'
-        }
+        eyebrow="ЦЕНТР ОБРАЩЕНИЙ"
+        title="Заявки"
         description={
-          support
-            ? user.role === 'ADMIN'
-              ? 'Просматривайте обращения сотрудников. Откройте заявку, чтобы ответить, назначить исполнителя или изменить статус.'
-              : user.role === 'AGENT'
-                ? 'Просматривайте доступные вам обращения и отвечайте пользователям в карточке заявки.'
-                : 'Проверяйте статус своих обращений и читайте ответы команды поддержки.'
-            : mine
-              ? 'Следите за обращениями, которые вы создали.'
-              : 'Все доступные вам обращения — в одном месте.'
+          mine
+            ? 'Следите за обращениями, которые вы создали.'
+            : 'Все доступные вам обращения — в одном месте.'
         }
       >
-        {support ? (
-          <button className="button secondary" onClick={reload} disabled={loading}>
-            <RefreshCw size={17} /> {t('Обновить')}
-          </button>
-        ) : (
-          <NewButton />
-        )}
+        <NewButton />
       </PageTitle>
       <section className="panel">
-        {support && (
-          <div className="support-queues" role="group" aria-label={t('Статус обращений')}>
-            {supportQueues.map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={status === value}
-                onClick={() => {
-                  updateFilters({ status: value, statusGroup: '' });
-                }}
-              >
-                {t(label)}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="filters">
           <label className="search-field">
             <Search size={18} />
@@ -1209,14 +1150,14 @@ export function TicketsPage({ mine = false, support = false }) {
             onToggle={(active) => updateFilters({ favorites: active ? '1' : '' })}
           />
         </div>
-        {(support || filtered) && (
+        {filtered && (
           <div className="filter-summary">
             <span aria-live="polite">
               {loading
                 ? t('Загрузка обращений…')
                 : error
                   ? t('Данные недоступны')
-                  : t(support ? 'Найдено обращений: {total}' : 'Найдено заявок: {total}', {
+                  : t('Найдено заявок: {total}', {
                     total: data.total.toLocaleString(locale),
                   })}
             </span>
@@ -1229,7 +1170,6 @@ export function TicketsPage({ mine = false, support = false }) {
         )}
         <TicketTable
           tickets={loading || error ? [] : data?.tickets || []}
-          support={support}
           controls={controls}
         />
         {loading ? (
@@ -1269,20 +1209,9 @@ export function TicketsPage({ mine = false, support = false }) {
           </>
         ) : (
           <Empty
-            title={
-              filtered ? 'Ничего не найдено'
-                : support ? 'В этой очереди пока нет обращений' : undefined
-            }
-            text={
-              filtered
-                ? 'Попробуйте изменить поисковый запрос или сбросить фильтры.'
-                : support
-                  ? user.role === 'EMPLOYEE'
-                    ? 'Ваши обращения появятся здесь после отправки через «Создать заявку». Выберите другой статус, чтобы посмотреть историю.'
-                    : 'Выберите другой статус или дождитесь новых обращений пользователей.'
-                  : undefined
-            }
-            action={!filtered && !support}
+            title={filtered ? 'Ничего не найдено' : undefined}
+            text={filtered ? 'Попробуйте изменить поисковый запрос или сбросить фильтры.' : undefined}
+            action={!filtered}
           />
         )}
       </section>
@@ -1379,6 +1308,12 @@ export function NewTicketPage() {
   });
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState('');
+  // The help center links here with ?categoryId=… so the category is already picked.
+  const presetCategory = useSearchParams().get('categoryId') || '';
+  useEffect(() => {
+    if (!draftReady || !presetCategory || !data?.categories?.some((item) => item.id === presetCategory)) return;
+    setValues((old) => (old.categoryId ? old : { ...old, categoryId: presetCategory }));
+  }, [draftReady, presetCategory, data, setValues]);
   async function submit(event) {
     event.preventDefault();
     if (!draftReady || busy) return;

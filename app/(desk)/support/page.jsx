@@ -1,9 +1,9 @@
-import { SupportPage } from '../../../components/servicedesk-pages';
+import { SupportCenterPage } from '../../../components/support-center';
 
 import { localizedMetadata } from '../../../lib/request-language';
 
-export const generateMetadata = localizedMetadata('Поддержка — обращения пользователей');
+export const generateMetadata = localizedMetadata('Центр поддержки');
 
 export default function Page() {
-  return <SupportPage />;
+  return <SupportCenterPage />;
 }

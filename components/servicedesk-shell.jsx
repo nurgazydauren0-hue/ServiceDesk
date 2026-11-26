@@ -69,7 +69,7 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
   const pathname = usePathname();
   const item = [
     ...navigation,
-    { href: '/support', label: 'Поддержка' },
+    { href: '/support', label: user.role === 'EMPLOYEE' ? 'Центр помощи' : 'Центр поддержки' },
     { href: '/settings', label: 'Настройки' },
     { href: '/profile', label: 'Профиль' },
     { href: '/notifications', label: 'Уведомления' },
@@ -181,18 +181,20 @@ export default function ServiceDeskShell({ user: initialUser, children }) {
               <span className="support-icon">
                 <ShieldCheck size={22} />
               </span>
-              <strong>{t('Центр поддержки')}</strong>
+              <strong>{t(user.role === 'EMPLOYEE' ? 'Центр помощи' : 'Центр поддержки')}</strong>
               <p>
-                {t(user.role === 'EMPLOYEE'
-                  ? 'Следите за ответами и статусом своих обращений'
-                  : 'Просматривайте обращения пользователей и помогайте с решением')}
+                {t(user.role === 'ADMIN'
+                  ? 'Очередь ответов, просрочки и загрузка ИТ-специалистов'
+                  : user.role === 'AGENT'
+                    ? 'Кому нужно ответить и кого вы ждёте'
+                    : 'Выберите тему и следите за перепиской со специалистом')}
               </p>
               <Link
                 href="/support"
                 onClick={sidebar.afterNavigate}
                 aria-current={pathname === '/support' ? 'page' : undefined}
               >
-                {t(user.role === 'EMPLOYEE' ? 'Мои обращения' : 'Обращения пользователей')}
+                {t(user.role === 'ADMIN' ? 'Открыть пульт' : user.role === 'AGENT' ? 'Моя очередь' : 'Получить помощь')}
                 <AnimatedNavIcon kind="support" size={14} />
               </Link>
             </div>
