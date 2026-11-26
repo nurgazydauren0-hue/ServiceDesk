@@ -41,6 +41,7 @@ import {
   request,
   useResource,
 } from './servicedesk-pages';
+import { EscalationsPanel } from './support-requests';
 import './support-center.css';
 
 const ticketCode = (id) => `SD-${String(id).padStart(4, '0')}`;
@@ -609,11 +610,20 @@ export function SupportCenterPage() {
       ) : error ? (
         <ResourceError error={error} retry={reload} />
       ) : data.role === 'ADMIN' ? (
-        <AdminConsole data={data} reload={reload} />
+        <>
+          <EscalationsPanel escalations={data.escalations} reload={reload} />
+          <AdminConsole data={data} reload={reload} />
+        </>
       ) : data.role === 'AGENT' ? (
-        <AgentDesk data={data} reload={reload} />
+        <>
+          <AgentDesk data={data} reload={reload} />
+          <EscalationsPanel escalations={data.escalations} reload={reload} />
+        </>
       ) : (
-        <RequesterHelp data={data} />
+        <>
+          <RequesterHelp data={data} />
+          <EscalationsPanel escalations={data.escalations} reload={reload} />
+        </>
       )}
     </div>
   );

@@ -27,16 +27,32 @@ enum Priority {
   URGENT
 }
 
+// Escalation of a ticket to the support center: a complaint, a question
+// or a claim that the work was done badly. Handled by an administrator.
+enum SupportRequestType {
+  COMPLAINT
+  QUESTION
+  QUALITY
+}
+
+enum SupportRequestStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
 model User {
-  id              String    @id @default(cuid())
-  name            String    @db.VarChar(100)
-  email           String    @unique @db.VarChar(254)
+  id              String           @id @default(cuid())
+  name            String           @db.VarChar(100)
+  email           String           @unique @db.VarChar(254)
   passwordHash    String
-  role            Role      @default(EMPLOYEE)
-  createdAt       DateTime  @default(now())
-  createdTickets  Ticket[]  @relation("TicketCreator")
-  assignedTickets Ticket[]  @relation("TicketAssignee")
+  role            Role             @default(EMPLOYEE)
+  createdAt       DateTime         @default(now())
+  createdTickets  Ticket[]         @relation("TicketCreator")
+  assignedTickets Ticket[]         @relation("TicketAssignee")
   comments        Comment[]
+  supportRequests SupportRequest[] @relation("SupportRequestAuthor")
+  handledRequests SupportRequest[] @relation("SupportRequestHandler")
 }
 
 model Category {
@@ -46,22 +62,23 @@ model Category {
 }
 
 model Ticket {
-  id           Int          @id @default(autoincrement())
-  sourceKey    String?      @unique
-  title        String       @db.VarChar(160)
-  description  String       @db.Text
-  status       TicketStatus @default(NEW)
-  priority     Priority     @default(MEDIUM)
-  categoryId   String
-  createdById  String
-  assignedToId String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  resolvedAt   DateTime?
-  category     Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  createdBy    User         @relation("TicketCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  assignedTo   User?        @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  comments     Comment[]
+  id              Int              @id @default(autoincrement())
+  sourceKey       String?          @unique
+  title           String           @db.VarChar(160)
+  description     String           @db.Text
+  status          TicketStatus     @default(NEW)
+  priority        Priority         @default(MEDIUM)
+  categoryId      String
+  createdById     String
+  assignedToId    String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  resolvedAt      DateTime?
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy       User             @relation("TicketCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedTo      User?            @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  comments        Comment[]
+  supportRequests SupportRequest[]
 
   @@index([createdById, createdAt])
   @@index([assignedToId, status])
@@ -80,6 +97,27 @@ model Comment {
 
   @@index([ticketId, createdAt])
   @@index([authorId])
+}
+
+model SupportRequest {
+  id          Int                  @id @default(autoincrement())
+  ticketId    Int
+  authorId    String
+  type        SupportRequestType
+  status      SupportRequestStatus @default(OPEN)
+  message     String               @db.Text
+  response    String?              @db.Text
+  handledById String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  resolvedAt  DateTime?
+  ticket      Ticket               @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User                 @relation("SupportRequestAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  handledBy   User?                @relation("SupportRequestHandler", fields: [handledById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([ticketId, createdAt])
+  @@index([authorId, createdAt])
 }
 
 // Shared across server processes. Keys are hashes, never raw emails or IPs.

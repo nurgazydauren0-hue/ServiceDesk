@@ -256,6 +256,7 @@ after(async () => {
     if (category)
       await prisma.ticket.deleteMany({ where: { categoryId: category.id } });
     if (userIds.length) {
+      await prisma.supportRequest.deleteMany({ where: { authorId: { in: userIds } } });
       await prisma.comment.deleteMany({ where: { authorId: { in: userIds } } });
       await prisma.ticket.deleteMany({
         where: { createdById: { in: userIds } },
@@ -880,6 +881,61 @@ test(
     );
 
     await t.test(
+      'заявку можно отправить в центр поддержки; обрабатывает только администратор',
+      async () => {
+        const path = `/api/tickets/${ticketId}/support-requests`;
+        const created = await employee.client.json(path, 'POST', {
+          type: 'QUALITY',
+          message: `Проблема вернулась ${marker}`,
+        });
+        assert.equal(created.response.status, 201, created.text);
+        const requestId = created.body.request.id;
+        assert.equal(created.body.request.status, 'OPEN');
+        assert.equal(created.body.request.authorId, employee.id);
+        // One active request per ticket and author.
+        assert.equal(
+          (await employee.client.json(path, 'POST', { type: 'COMPLAINT', message: 'Вторая жалоба подряд' })).response.status,
+          409,
+        );
+        // A stranger cannot send or read requests of someone else's ticket.
+        assert.equal(
+          (await stranger.client.json(path, 'POST', { type: 'QUESTION', message: 'Вопрос по чужой заявке' })).response.status,
+          404,
+        );
+        assert.equal((await stranger.client.request(path)).response.status, 404);
+        // The assigned agent reads the ticket but not a complaint written by someone else;
+        // the admin sees it. (agent was demoted above, so otherAgent is assigned for this check.)
+        const assign = (assignedToId) =>
+          admin.client.json(`/api/tickets/${ticketId}`, 'PATCH', { assignedToId });
+        assert.equal((await assign(otherAgent.id)).response.status, 200);
+        const agentView = await otherAgent.client.request(path);
+        assert.equal(agentView.response.status, 200, agentView.text);
+        assert.deepEqual(agentView.body.requests, []);
+        // agent is an EMPLOYEE now and cannot be assigned through the API; restore the fixture directly.
+        await prisma.ticket.update({ where: { id: ticketId }, data: { assignedToId: agent.id } });
+        assert.equal((await admin.client.request(path)).body.requests.length, 1);
+        const update = `/api/support/requests/${requestId}`;
+        for (const user of [employee, agent])
+          assert.equal((await user.client.json(update, 'PATCH', { status: 'IN_REVIEW' })).response.status, 403);
+        assert.equal((await admin.client.json(update, 'PATCH', { status: 'RESOLVED' })).response.status, 400);
+        const resolved = await admin.client.json(update, 'PATCH', {
+          status: 'RESOLVED',
+          response: 'Проверили, исполнитель переделает.',
+        });
+        assert.equal(resolved.response.status, 200, resolved.text);
+        assert.equal(resolved.body.request.handledById, admin.id);
+        assert.ok(resolved.body.request.resolvedAt);
+        const support = await employee.client.request('/api/support');
+        assert.ok(support.body.escalations.mine.some((item) => item.id === requestId && item.response));
+        // After an answer the author may write again.
+        assert.equal(
+          (await employee.client.json(path, 'POST', { type: 'QUESTION', message: 'Новый вопрос после ответа' })).response.status,
+          201,
+        );
+      },
+    );
+
+    await t.test(
       'заявка и комментарии остаются после перезапуска Next.js',
       async () => {
         await stopServer();
@@ -909,6 +965,7 @@ test(
         );
         assert.equal(await prisma.ticket.count({ where: { id: ticketId } }), 0);
         assert.equal(await prisma.comment.count({ where: { ticketId } }), 0);
+        assert.equal(await prisma.supportRequest.count({ where: { ticketId } }), 0);
         assert.equal(
           (await employee.client.request(`/api/tickets/${ticketId}`)).response
             .status,

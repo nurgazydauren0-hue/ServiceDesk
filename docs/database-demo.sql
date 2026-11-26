@@ -63,6 +63,7 @@ SELECT 'User' AS table_name, COUNT(*) AS rows FROM "User"
 UNION ALL SELECT 'Category', COUNT(*) FROM "Category"
 UNION ALL SELECT 'Ticket', COUNT(*) FROM "Ticket"
 UNION ALL SELECT 'Comment', COUNT(*) FROM "Comment"
+UNION ALL SELECT 'SupportRequest', COUNT(*) FROM "SupportRequest"
 UNION ALL SELECT 'AuthRateLimit', COUNT(*) FROM "AuthRateLimit";
 
 -- 2.2 Пользователи: в базе хранится только хеш пароля, а не сам пароль
@@ -163,6 +164,25 @@ FROM conversation
 ORDER BY overdue DESC, who_waits, hours_waiting DESC;
 
 
+-- 3.6 Жалобы и вопросы в центре поддержки: связь SupportRequest → Ticket → User
+--     (чтобы были строки, отправьте заявку кнопкой «Отправить в центр поддержки»)
+SELECT 'SR-' || lpad(sr.id::text, 4, '0') AS request, sr.type, sr.status,
+       author.name AS author, 'SD-' || lpad(t.id::text, 4, '0') AS ticket, t.title,
+       left(sr.message, 60) AS message,
+       COALESCE(admin.name, '—') AS handled_by, sr.response, sr."createdAt"
+FROM "SupportRequest" sr
+JOIN "Ticket" t ON t.id = sr."ticketId"
+JOIN "User" author ON author.id = sr."authorId"
+LEFT JOIN "User" admin ON admin.id = sr."handledById"
+ORDER BY sr.status, sr."createdAt";
+
+-- 3.7 Сколько жалоб, вопросов и претензий к качеству — по статусам
+SELECT type, status, COUNT(*) AS requests
+FROM "SupportRequest"
+GROUP BY type, status
+ORDER BY type, status;
+
+
 -- ============================================================
 -- 4. Права доступа: каждая роль получает свой WHERE
 --    (lib/policies.js → ticketScope; сервер добавляет его к каждому запросу)
@@ -214,6 +234,12 @@ WHERE id = (SELECT MIN(id) FROM "Ticket");
 -- 5.5 NOT NULL: категория без названия
 --     Ожидаемая ошибка: null value in column "name" ... violates not-null constraint
 INSERT INTO "Category" (id, name) VALUES ('demo-empty', NULL);
+
+-- 5.5b ENUM: тип обращения, которого нет в списке
+--     Ожидаемая ошибка: invalid input value for enum "SupportRequestType": "SPAM"
+INSERT INTO "SupportRequest" ("ticketId", "authorId", type, message, "updatedAt")
+SELECT t.id, t."createdById", 'SPAM', 'Проверка типа обращения', now()
+FROM "Ticket" t ORDER BY t.id LIMIT 1;
 
 -- 5.6 ON DELETE RESTRICT: удалить категорию, в которой есть заявки
 --     Ожидаемая ошибка: update or delete on table "Category" violates foreign key constraint

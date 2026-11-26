@@ -64,6 +64,7 @@ import { getTrendRangeError, isTrendCalendarDate } from '../lib/trend-periods.js
 import TicketColumnHeader from './ticket-column-header';
 import { FavoriteButton, FavoritesToggle, useTicketFavorites } from './ticket-favorites';
 import DraftStatus from './draft-status';
+import { TicketSupportRequests } from './support-requests';
 import { usePersistentLocalState } from './use-persistent-local-state';
 import { EMPTY_TICKET_DRAFT, hasTicketDraft, isCommentDraft, isTicketDraft } from '../lib/ticket-drafts.js';
 import './dashboard-interactions.css';
@@ -1594,6 +1595,9 @@ export function TicketDetailPage({ id, created = false }) {
         </div>
         <div className="heading-actions">
           <FavoriteButton ticketId={ticket.id} userId={user.id} className="ticket-favorite-detail" />
+          <a className="button secondary" href="#support-center">
+            <Headset size={16} /> {t('В центр поддержки')}
+          </a>
           {editable && (
             <button
               className="button secondary"
@@ -1735,6 +1739,7 @@ export function TicketDetailPage({ id, created = false }) {
               />
             </form>
           </section>
+          <TicketSupportRequests ticketId={ticket.id} />
         </div>
         <aside className="panel ticket-properties">
           <h2>{t('Детали заявки')}</h2>
