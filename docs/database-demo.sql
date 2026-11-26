@@ -126,6 +126,42 @@ WHERE status IN ('NEW', 'IN_PROGRESS', 'WAITING') AND "assignedToId" IS NULL
 ORDER BY priority DESC, "createdAt"
 LIMIT 5;
 
+-- 3.5 Центр поддержки: кто кого ждёт и что просрочено
+--     Последнее сообщение каждой заявки берётся подзапросом LATERAL (быстро благодаря
+--     индексу Comment_ticketId_createdAt_idx). Нормы ответа: срочный 2 ч, высокий 8 ч,
+--     средний 24 ч, низкий 72 ч — те же, что в lib/support-center.js.
+WITH conversation AS (
+  SELECT t.id, t.title, t.status, t.priority,
+         requester.name AS requester,
+         last_c.author_name AS last_author,
+         CASE
+           WHEN t.status = 'WAITING' THEN 'ждём пользователя'
+           WHEN last_c."authorId" IS NULL OR last_c."authorId" = t."createdById" THEN 'ждёт ответа поддержки'
+           ELSE 'специалист работает'
+         END AS who_waits,
+         EXTRACT(EPOCH FROM (now() - COALESCE(last_c."createdAt", t."createdAt"))) / 3600 AS hours_waiting,
+         CASE t.priority WHEN 'URGENT' THEN 2 WHEN 'HIGH' THEN 8 WHEN 'MEDIUM' THEN 24 ELSE 72 END AS target_hours
+  FROM "Ticket" t
+  JOIN "User" requester ON requester.id = t."createdById"
+  LEFT JOIN LATERAL (
+    SELECT c."authorId", c."createdAt", u.name AS author_name
+    FROM "Comment" c
+    JOIN "User" u ON u.id = c."authorId"
+    WHERE c."ticketId" = t.id
+    ORDER BY c."createdAt" DESC, c.id DESC
+    LIMIT 1
+  ) last_c ON true
+  WHERE t.status IN ('NEW', 'IN_PROGRESS', 'WAITING')
+)
+SELECT id, title, priority, requester,
+       COALESCE(last_author, '— сообщений нет') AS last_message_from,
+       who_waits,
+       ROUND(hours_waiting) AS hours_waiting,
+       target_hours,
+       (who_waits = 'ждёт ответа поддержки' AND hours_waiting > target_hours) AS overdue
+FROM conversation
+ORDER BY overdue DESC, who_waits, hours_waiting DESC;
+
 
 -- ============================================================
 -- 4. Права доступа: каждая роль получает свой WHERE
