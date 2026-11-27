@@ -323,20 +323,27 @@ function AdminRequestCard({ item, onChanged }) {
   );
 }
 
-function Kpi({ icon: Icon, value, label, tone }) {
+// Each counter is also a shortcut to the tab that lists exactly those requests.
+function Kpi({ icon: Icon, value, label, tone, active, onSelect }) {
   const { locale } = useLanguage();
   return (
-    <div className={`sr-kpi tone-${tone}${value ? '' : ' is-zero'}`}>
+    <button
+      type="button"
+      className={`sr-kpi tone-${tone}${value ? '' : ' is-zero'}${active ? ' is-active' : ''}`}
+      aria-pressed={active}
+      onClick={onSelect}
+    >
       <span className="sr-kpi-icon"><Icon size={18} /></span>
       <span>
         <strong>{value.toLocaleString(locale)}</strong>
         <span>{label}</span>
       </span>
-    </div>
+    </button>
   );
 }
 
 const statusTabs = [
+  ['ALL', 'Все'],
   ['ACTIVE', 'Открытые'],
   ['OPEN', 'Новые'],
   ['IN_REVIEW', 'На рассмотрении'],
@@ -349,17 +356,25 @@ export function AdminSupportCenter({ data, reload }) {
   const [tab, setTab] = useState('ACTIVE');
   const [type, setType] = useState('');
   const k = data.kpis;
-  const source = tab === 'RESOLVED' ? data.resolved : data.active;
+  const source = tab === 'ALL'
+    ? [...data.active, ...data.resolved]
+    : tab === 'RESOLVED' ? data.resolved : data.active;
   const items = source.filter((item) =>
-    (tab === 'ACTIVE' || tab === 'RESOLVED' || item.status === tab) && (!type || item.type === type));
+    (['ALL', 'ACTIVE', 'RESOLVED'].includes(tab) || item.status === tab) && (!type || item.type === type));
+  const show = (nextTab, nextType = '') => { setTab(nextTab); setType(nextType); };
   return (
     <>
       <div className="sr-kpis">
-        <Kpi icon={Inbox} tone="red" value={k.open} label={t('Новые обращения')} />
-        <Kpi icon={Eye} tone="amber" value={k.inReview} label={t('На рассмотрении')} />
-        <Kpi icon={MessageCircleWarning} tone="red" value={k.complaints} label={t('Открытые жалобы')} />
-        <Kpi icon={CheckCheck} tone="green" value={k.resolvedToday} label={t('Решено сегодня')} />
-        <Kpi icon={Headset} tone="blue" value={k.total} label={t('Всего обращений')} />
+        <Kpi icon={Inbox} tone="red" value={k.open} label={t('Новые обращения')}
+          active={tab === 'OPEN' && !type} onSelect={() => show('OPEN')} />
+        <Kpi icon={Eye} tone="amber" value={k.inReview} label={t('На рассмотрении')}
+          active={tab === 'IN_REVIEW' && !type} onSelect={() => show('IN_REVIEW')} />
+        <Kpi icon={MessageCircleWarning} tone="red" value={k.complaints} label={t('Открытые жалобы')}
+          active={tab === 'ACTIVE' && type === 'COMPLAINT'} onSelect={() => show('ACTIVE', 'COMPLAINT')} />
+        <Kpi icon={CheckCheck} tone="green" value={k.resolvedToday} label={t('Решено сегодня')}
+          active={tab === 'RESOLVED' && !type} onSelect={() => show('RESOLVED')} />
+        <Kpi icon={Headset} tone="blue" value={k.total} label={t('Всего обращений')}
+          active={tab === 'ALL' && !type} onSelect={() => show('ALL')} />
       </div>
       <section className="panel sr-admin" aria-labelledby="sr-admin-title">
         <div className="panel-heading">
@@ -391,14 +406,15 @@ export function AdminSupportCenter({ data, reload }) {
         </div>
         {items.length ? (
           <ul className="sr-list sr-admin-list">
-            {items.map((item) => (tab === 'RESOLVED'
+            {items.map((item) => (item.status === 'RESOLVED'
               ? <li key={item.id} className={`sr-card sr-card-${item.type.toLowerCase()}`}><RequestBody item={item} showAuthor /></li>
               : <AdminRequestCard key={item.id} item={item} onChanged={reload} />))}
           </ul>
         ) : (
           <p className="sr-clear">
             <CircleCheck size={18} />
-            {t(tab === 'RESOLVED' ? 'Решённых обращений пока нет.' : 'Открытых жалоб и вопросов нет.')}
+            {t(tab === 'RESOLVED' ? 'Решённых обращений пока нет.'
+              : tab === 'ALL' ? 'Обращений пока нет.' : 'Открытых жалоб и вопросов нет.')}
           </p>
         )}
       </section>
