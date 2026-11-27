@@ -365,6 +365,8 @@ export function AdminSupportCenter({ data, reload }) {
   return (
     <>
       <div className="sr-kpis">
+        <Kpi icon={Headset} tone="blue" value={k.total} label={t('Всего обращений')}
+          active={tab === 'ALL' && !type} onSelect={() => show('ALL')} />
         <Kpi icon={Inbox} tone="red" value={k.open} label={t('Новые обращения')}
           active={tab === 'OPEN' && !type} onSelect={() => show('OPEN')} />
         <Kpi icon={Eye} tone="amber" value={k.inReview} label={t('На рассмотрении')}
@@ -373,8 +375,6 @@ export function AdminSupportCenter({ data, reload }) {
           active={tab === 'ACTIVE' && type === 'COMPLAINT'} onSelect={() => show('ACTIVE', 'COMPLAINT')} />
         <Kpi icon={CheckCheck} tone="green" value={k.resolvedToday} label={t('Решено сегодня')}
           active={tab === 'RESOLVED' && !type} onSelect={() => show('RESOLVED')} />
-        <Kpi icon={Headset} tone="blue" value={k.total} label={t('Всего обращений')}
-          active={tab === 'ALL' && !type} onSelect={() => show('ALL')} />
       </div>
       <section className="panel sr-admin" aria-labelledby="sr-admin-title">
         <div className="panel-heading">
