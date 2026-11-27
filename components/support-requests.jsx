@@ -367,13 +367,13 @@ export function AdminSupportCenter({ data, reload }) {
       <div className="sr-kpis">
         <Kpi icon={Headset} tone="blue" value={k.total} label={t('Всего обращений')}
           active={tab === 'ALL' && !type} onSelect={() => show('ALL')} />
+        <Kpi icon={MessageCircleWarning} tone="red" value={k.active} label={t('Открытые обращения')}
+          active={tab === 'ACTIVE' && !type} onSelect={() => show('ACTIVE')} />
         <Kpi icon={Inbox} tone="red" value={k.open} label={t('Новые обращения')}
           active={tab === 'OPEN' && !type} onSelect={() => show('OPEN')} />
         <Kpi icon={Eye} tone="amber" value={k.inReview} label={t('На рассмотрении')}
           active={tab === 'IN_REVIEW' && !type} onSelect={() => show('IN_REVIEW')} />
-        <Kpi icon={MessageCircleWarning} tone="red" value={k.complaints} label={t('Открытые жалобы')}
-          active={tab === 'ACTIVE' && type === 'COMPLAINT'} onSelect={() => show('ACTIVE', 'COMPLAINT')} />
-        <Kpi icon={CheckCheck} tone="green" value={k.resolvedToday} label={t('Решено сегодня')}
+        <Kpi icon={CheckCheck} tone="green" value={k.resolved} label={t('Решённые обращения')}
           active={tab === 'RESOLVED' && !type} onSelect={() => show('RESOLVED')} />
       </div>
       <section className="panel sr-admin" aria-labelledby="sr-admin-title">
